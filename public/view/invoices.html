@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f5f5f5;
+      }
+      .invoice-container {
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #ccc;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      .header h1 {
+        margin: 0;
+      }
+      .details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .details div {
+        width: 48%;
+      }
+      .details div p {
+        margin: 5px 0;
+      }
+      .table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+      }
+      .table th,
+      .table td {
+        border: 1px solid #ccc;
+        padding: 10px;
+        text-align: left;
+      }
+      .table th {
+        background-color: #f0f0f0;
+      }
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-container">
+      <div class="header">
+        <h1>Invoice</h1>
+        <p>Invoice Nr.: ${invoiceNumber}</p>
+        <p>Invoice Date: ${invoiceDate}</p>
+      </div>
+      <div class="details">
+        <div>
+          <h3>Bill To:</h3>
+          <p>${name}</p>
+          <p>${companyName}</p>
+          <p>Phone: ${phoneNumber}</p>
+          <p>VAT ID: ${dealer_address.vat_id || 'N/A'}</p>
+        </div>
+        <div>
+          <h3>Pay To:</h3>
+          <p>Aristocar Europe SRL</p>
+          <p>Teststreet 3</p>
+          <p>445200 Vama</p>
+          <p>Romania</p>
+        </div>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th>Quantity</th>
+            <th>Amount (excl. VAT)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>${subscription.package.title}</td>
+            <td>1</td>
+            <td>${subscription.package.price.toFixed(2)} €</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="details">
+        <div>
+          <p>
+            <strong>Subtotal:</strong> ${subscription.package.price.toFixed(2)}
+            €
+          </p>
+          <p>
+            <strong>VAT (19%):</strong> ${(subscription.package.price *
+            vatAmount).toFixed(2)} €
+          </p>
+        </div>
+        <div>
+          <p><strong>Total Amount:</strong> ${totalAmount} €</p>
+        </div>
+      </div>
+      <div class="footer">
+        <p>
+          VAT-exempt intra-community supply according to Article 138 of the VAT
+          Directive.
+        </p>
+        <p>
+          Payment received in full on ${new
+          Date(payment.createdAt).toLocaleDateString()}.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

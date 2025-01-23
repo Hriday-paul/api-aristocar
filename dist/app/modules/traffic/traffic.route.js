@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.trafficRoutes = void 0;
+const express_1 = require("express");
+const traffic_controller_1 = require("./traffic.controller");
+const router = (0, express_1.Router)();
+router.get('/', traffic_controller_1.trafficController.getAllSTraffic);
+router.get('/day/:date', traffic_controller_1.trafficController.getTrafficForDay);
+router.get('/month/:year/:month', traffic_controller_1.trafficController.getTrafficForMonth);
+router.get('/year/:year', traffic_controller_1.trafficController.getTrafficForYear);
+exports.trafficRoutes = router;
