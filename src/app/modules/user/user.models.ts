@@ -3,6 +3,7 @@ import config from '../../config';
 import bcrypt from 'bcrypt';
 import { IUser, UserModel } from './user.interface';
 import { Role, USER_ROLE } from './user.constants';
+import cron from 'node-cron';
 
 const userSchema: Schema<IUser> = new Schema(
   {
@@ -13,7 +14,7 @@ const userSchema: Schema<IUser> = new Schema(
     },
     name: {
       type: String,
-      required: true,
+      // required: true,
       default: null,
     },
     email: {
@@ -128,6 +129,12 @@ const userSchema: Schema<IUser> = new Schema(
     freeLimit: {
       type: Number,
     },
+    carCreateLimit: {
+      type: Number,
+    },
+    durationDay: {
+      type: Number,
+    },
   },
   {
     timestamps: true,
@@ -172,3 +179,23 @@ userSchema.statics.isPasswordMatched = async function (
 };
 
 export const User = model<IUser, UserModel>('User', userSchema);
+
+// Daily Cron Job to decrement durationDay
+cron.schedule('0 0 * * *', async () => {
+  console.log('Running daily job to decrement durationDay...');
+  try {
+    const users = await User.find({ durationDay: { $gt: 0 } });
+
+    for (const user of users) {
+      user.durationDay -= 1; // Decrement durationDay
+      if (user.durationDay === 0) {
+        user.carCreateLimit = 0; // Reset carCreateLimit if durationDay expires
+      }
+      await user.save(); // Save the updated user
+    }
+
+    console.log('Daily job completed successfully.');
+  } catch (error) {
+    console.error('Error running daily job:', error);
+  }
+});

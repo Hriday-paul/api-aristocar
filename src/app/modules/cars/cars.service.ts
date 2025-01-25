@@ -104,110 +104,30 @@ const getcarsByCreatorId = async (creatorID: string): Promise<ICar> => {
   return car as any;
 };
 
-// const getcarsCountBycreatorId = async (creatorID: string) => {
-//   const subscription = await Subscription.findOne({
-//     user: creatorID,
-//   }).populate<{ package: IPackage }>({
-//     path: 'package',
-//     select: 'carCreateLimit',
-//   });
-
-//   if (!subscription) {
-//     throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
-//   }
-//   if (
-//     !subscription.package ||
-//     typeof subscription.package.carCreateLimit !== 'number'
-//   ) {
-//     throw new AppError(
-//       httpStatus.BAD_REQUEST,
-//       'Invalid subscription package or car creation limit',
-//     );
-//   }
-//   const carCreateLimit = subscription.package.carCreateLimit;
-//   const createdCarCount = await CarModel.countDocuments({ creatorID });
-//   const carsRemaining = carCreateLimit - createdCarCount;
-//   if (createdCarCount === 0) {
-//     throw new AppError(httpStatus.NOT_FOUND, 'No cars found for this user');
-//   }
-//   const allCars = await CarModel.find({ creatorID });
-
-//   return {
-//     createdCarCount,
-//     carsRemaining: carsRemaining >= 0 ? carsRemaining : 0, // Ensure no negative values
-//     allCars,
-//     carCreateLimit,
-//   };
-// };
-
 const getcarsCountBycreatorId = async (creatorID: string) => {
-  // Get the user details to check free limit
   const user = await User.findById(creatorID);
-
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+    return { message: 'User not found' }; // More relevant message
   }
 
-  // Check if user is a free user
-  if (user.freeLimit !== undefined && user.freeLimit > 0) {
-    const createdCarCount = await CarModel.countDocuments({ creatorID });
-    const carsRemaining = user.freeLimit - createdCarCount;
-
-    // if (createdCarCount === 0) {
-    //   throw new AppError(httpStatus.NOT_FOUND, 'No cars found for this user');
-    // }
-
-    const allCars = await CarModel.find({ creatorID })
-      .populate('brand')
-      .populate('model');
-
-    return {
-      createdCarCount,
-      carsRemaining: carsRemaining >= 0 ? carsRemaining : 0, // Ensure no negative values
-      allCars,
-      carCreateLimit: user.freeLimit,
-    };
-  }
-
-  // If not a free user, fetch subscription details
-  const subscription = await Subscription.findOne({
-    user: creatorID,
-  }).populate<{ package: IPackage }>({
-    path: 'package',
-    select: 'carCreateLimit',
-  });
-
-  if (!subscription) {
-    return 'No subscription';
-  }
-
-  if (
-    !subscription.package ||
-    typeof subscription.package.carCreateLimit !== 'number'
-  ) {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'Invalid subscription package or car creation limit',
-    );
-  }
-
-  const carCreateLimit = subscription.package.carCreateLimit;
+  // Count the number of cars created by this user
   const createdCarCount = await CarModel.countDocuments({ creatorID });
-  const carsRemaining = carCreateLimit - createdCarCount;
 
-  // if (createdCarCount === 0) {
-  //   throw new AppError(httpStatus.NOT_FOUND, '');
-  // }
+  // Determine the remaining car limit
+  const carsRemaining =
+    user.freeLimit > 0 ? user.freeLimit : user.carCreateLimit;
 
+  // Fetch all cars created by this user with populated brand and model data
   const allCars = await CarModel.find({ creatorID })
     .populate('brand')
     .populate('model');
 
+  // Return the results
   return {
     createdCarCount,
-    carsRemaining: carsRemaining >= 0 ? carsRemaining : 0, // Ensure no negative values
+    carsRemaining,
     allCars,
-    carCreateLimit,
+    carCreateLimit: carsRemaining, // Include carCreateLimit for reference
   };
 };
 
@@ -249,10 +169,14 @@ const updatecars = async (
 
   // Fetch the existing car data from the database
   const existingCar = await CarModel.findById(id);
-
   // Ensure existing images are retained if no new images are provided
+  // payload.images = [
+  //   ...(existingCar?.images || []), // Retain existing images
+  //   ...newImages,
+  // ];
+
   payload.images = [
-    ...(existingCar?.images || []), // Retain existing images
+    ...(payload.defaultImages || existingCar?.images || []),
     ...newImages,
   ];
 

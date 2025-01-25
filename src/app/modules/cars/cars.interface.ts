@@ -15,6 +15,7 @@ export interface ICar {
   name: string;
   details: string;
   images: IImage[];
+  defaultImages: IImage[];
   brand: object;
   model: object;
   country: string;

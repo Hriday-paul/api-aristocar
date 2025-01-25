@@ -5,9 +5,10 @@ import Package from '../packages/packages.models';
 import { ISubscriptions } from './subscription.interface';
 import Subscription from './subscription.models';
 import { Types } from 'mongoose';
+import { User } from '../user/user.models';
 
 const createSubscription = async (payload: ISubscriptions) => {
-  console.log('insdie create subscription');
+  // console.log('insdie create subscription');
   // Check if a similar subscription exists
   const isExist = await Subscription.findOne({
     user: payload.user,
@@ -21,6 +22,7 @@ const createSubscription = async (payload: ISubscriptions) => {
 
   // Find the package details
   const packages = await Package.findById(payload.package);
+  const user = await User.findById(payload.user);
 
   if (!packages) {
     throw new AppError(httpStatus.BAD_REQUEST, 'Package not found');
@@ -30,20 +32,20 @@ const createSubscription = async (payload: ISubscriptions) => {
   payload.amount = packages.price;
 
   // Calculate the expiration date based on the package duration
-  if (packages.durationDay) {
+  if (user?.durationDay) {
     const currentDate = new Date();
+    const durationInMilliseconds = user.durationDay * 24 * 60 * 60 * 1000; // Convert days to milliseconds
     payload.expiredAt = new Date(
-      currentDate.getTime() + packages.durationDay * 24 * 60 * 60 * 1000,
-    ); // Add duration in milliseconds
+      currentDate.getTime() + durationInMilliseconds,
+    ); // Calculate expiration date
+    console.log('Current Date:', payload.expiredAt);
   } else {
-    throw new AppError(
-      httpStatus.BAD_REQUEST,
-      'Package duration not specified',
-    );
+    throw new AppError(httpStatus.BAD_REQUEST, 'Duration day not found');
   }
 
   // Create the subscription
   const result = await Subscription.create(payload);
+  // console.log('result:', result);
 
   if (!result) {
     throw new Error('Failed to create subscription');
@@ -63,6 +65,9 @@ const getAllSubscription = async (query: Record<string, any>) => {
     .sort()
     .fields();
 
+  subscriptionsModel.modelQuery =
+    subscriptionsModel.modelQuery.sort('createdAt');
+
   const data = await subscriptionsModel.modelQuery;
   const meta = await subscriptionsModel.countTotal();
   return {
@@ -72,14 +77,13 @@ const getAllSubscription = async (query: Record<string, any>) => {
 };
 
 const getSubscriptionById = async (userId: string) => {
-  const result = await Subscription.find({ user: userId }).populate([
-    'package',
-    'user',
-  ]);
-  // if (!result) {
-  //   throw new Error('Subscription not found');
-  // }
-  return result;
+  const result = await Subscription.findOne({
+    user: userId,
+    isPaid: true,
+  })
+    .populate(['package', 'user'])
+    .sort('-createdAt');
+  return [result];
 };
 
 const getSubscriptionByUserId = async (id: string) => {

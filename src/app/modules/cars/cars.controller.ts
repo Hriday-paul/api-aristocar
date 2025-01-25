@@ -10,70 +10,69 @@ import Subscription from '../subscription/subscription.models';
 import { IPackage } from '../packages/packages.interface';
 import { User } from '../user/user.models';
 import { Types } from 'mongoose';
+import { USER_ROLE } from '../user/user.constants';
 
 const createcars = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.userId;
 
-  const subscription = await Subscription.findOne({
-    user: new Types.ObjectId(userId),
-    isExpired: false,
-    isDeleted: false,
-  }).populate('package');
+  // Fetch the user from the database
+  const user = await User.findById(userId);
 
-  if (!subscription) {
-    const user = await User.findById(userId);
-
-    const currentDate = new Date();
-    if (!user?.freeExpairDate || currentDate > user.freeExpairDate) {
-      return sendResponse(res, {
-        statusCode: httpStatus.BAD_REQUEST,
-        success: false,
-        message: 'Your free car creation period has expired.',
-        data: {},
-      });
-    }
-
-    const createdCarsCount = await carsService.getcarsCountBycreatorId(userId);
-    if (Number(createdCarsCount) >= (Number(user.freeLimit) || 0)) {
-      return sendResponse(res, {
-        statusCode: httpStatus.BAD_REQUEST,
-        success: false,
-        message: 'You have reached the free car creation limit.',
-        data: {},
-      });
-    }
-  } else {
-    const { expiredAt } = subscription;
-    const currentDate = new Date();
-
-    if (!expiredAt || currentDate > expiredAt) {
-      subscription.isExpired = true;
-      await subscription.save();
-
-      return sendResponse(res, {
-        statusCode: httpStatus.BAD_REQUEST,
-        success: false,
-        message: 'Your subscription has expired.',
-        data: {},
-      });
-    }
-
-    const { carCreateLimit } = subscription.package as IPackage;
-    const createdCarsCount = await CarModel.countDocuments({
-      creatorID: new Types.ObjectId(userId),
+  if (!user) {
+    return res.status(httpStatus.NOT_FOUND).json({
+      success: false,
+      message: 'User not found',
     });
-
-    if (createdCarsCount >= carCreateLimit) {
-      return sendResponse(res, {
-        statusCode: httpStatus.BAD_REQUEST,
-        success: false,
-        message: 'You have reached the car creation limit for your package.',
-        data: {},
-      });
-    }
   }
+
+  // Check if the user has the dealer role
+  if (user.role !== USER_ROLE.dealer) {
+    return res.status(httpStatus.FORBIDDEN).json({
+      success: false,
+      message: 'Only dealers are allowed to create cars',
+    });
+  }
+
+  // Check if the user has valid limits to create cars
+  const currentDate = new Date();
+  let canCreateCar = false;
+
+  if (
+    user.freeExpairDate &&
+    currentDate <= user.freeExpairDate &&
+    user.freeLimit > 0
+  ) {
+    canCreateCar = true; // Free limit is valid
+  } else if (
+    user.carCreateLimit &&
+    user.carCreateLimit > 0 &&
+    user.durationDay
+  ) {
+    canCreateCar = true; // Paid limit is valid
+  }
+
+  if (!canCreateCar) {
+    return res.status(httpStatus.FORBIDDEN).json({
+      success: false,
+      message: 'You have reached your car creation limit',
+    });
+  }
+
+  // Create the car
   req.body.creatorID = userId;
   const result = await carsService.createcars(req.body, req.files);
+
+  // Deduct the limit after car creation
+  if (user.freeExpairDate && currentDate <= user.freeExpairDate) {
+    user.freeLimit -= 1; // Deduct from free limit
+  } else if (user.carCreateLimit && user.carCreateLimit > 0) {
+    user.carCreateLimit -= 1; // Deduct from paid limit
+  }
+
+  // Save the updated user data
+  await user.save();
+
+  // Send the response
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -125,10 +124,6 @@ const getcarsByCreatorId = catchAsync(async (req: Request, res: Response) => {
 const getcarsCountBycreatorId = catchAsync(
   async (req: Request, res: Response) => {
     const creatorID = req.user?.userId;
-
-    // if (!creatorID) {
-    //   throw new AppError(httpStatus.BAD_REQUEST, 'User not found');
-    // }
     const count = await carsService.getcarsCountBycreatorId(creatorID);
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -146,7 +141,11 @@ const updatecars = catchAsync(async (req: Request, res: Response) => {
     );
 
     // Check for banner image
-    if (req.files['bannerImage'] && Array.isArray(req.files['bannerImage'])) {
+    if (
+      req.files &&
+      'bannerImage' in req.files &&
+      Array.isArray(req.files['bannerImage'])
+    ) {
       const uploadedBannerImages: string[] = req.files['bannerImage'].map(
         file => storeFile('carbanner', file.filename),
       );

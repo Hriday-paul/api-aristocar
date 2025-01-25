@@ -5,7 +5,8 @@ export type QueryObject = {
 
 export type TLogin = {
   email: string;
-  password: string;
+  password?: string;
+  isGoogleLogin: boolean;
 };
 export type TChangePassword = {
   oldPassword: string;

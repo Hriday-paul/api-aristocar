@@ -14,6 +14,12 @@ router.post(
 );
 
 router.post(
+  '/admin/login',
+  validateRequest(authValidation.loginZodValidationSchema),
+  authControllers.adminLogin,
+);
+
+router.post(
   '/refresh-token',
   validateRequest(authValidation.refreshTokenValidationSchema),
   authControllers.refreshToken,

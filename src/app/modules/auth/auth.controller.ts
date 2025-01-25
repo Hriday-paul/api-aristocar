@@ -8,6 +8,49 @@ import config from '../../config';
 // login
 const login = catchAsync(async (req: Request, res: Response) => {
   const result = await authServices.login(req.body);
+  // Check if the user role is 'admin'
+  // console.log(result.user.role);
+
+  if (result.user.role === 'admin') {
+    sendResponse(res, {
+      statusCode: httpStatus.FORBIDDEN,
+      success: false,
+      message: 'Logged in failed',
+      data: {},
+    });
+  }
+  const { refreshToken } = result;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cookieOptions: any = {
+    secure: false,
+    httpOnly: true,
+    maxAge: 31536000000,
+  };
+
+  if (config.NODE_ENV === 'production') {
+    cookieOptions.sameSite = 'none';
+  }
+  res.cookie('refreshToken', refreshToken, cookieOptions);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Logged in successfully',
+    data: result,
+  });
+});
+
+const adminLogin = catchAsync(async (req: Request, res: Response) => {
+  const result = await authServices.login(req.body);
+  // Check if the user role is 'admin'
+  if (result.user.role !== 'admin') {
+    sendResponse(res, {
+      statusCode: httpStatus.FORBIDDEN,
+      success: false,
+      message: 'Logged in failed your not are admins',
+      data: {},
+    });
+  }
   const { refreshToken } = result;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const cookieOptions: any = {
@@ -83,4 +126,5 @@ export const authControllers = {
   forgotPassword,
   resetPassword,
   refreshToken,
+  adminLogin,
 };

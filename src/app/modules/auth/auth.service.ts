@@ -21,30 +21,75 @@ import { USER_ROLE } from '../user/user.constants';
 
 // Login
 const login = async (payload: TLogin) => {
-  const user: IUser | null = await User.isUserExist(payload?.email);
+  let user: IUser | null = await User.isUserExist(payload?.email);
+
   if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+    if (payload.isGoogleLogin) {
+      user = await User.create({
+        email: payload.email,
+        isGoogleLogin: true,
+        password: '',
+        role: USER_ROLE.user,
+        verification: {
+          status: true,
+        },
+      });
+    } else {
+      // If not a Google login and user not found, throw error
+      throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+    }
+  } else {
+    if (user?.isDeleted) {
+      throw new AppError(httpStatus.FORBIDDEN, 'This user is deleted');
+    }
+
+    // If the user is registered with Google, enforce Google login
+    if (user.isGoogleLogin && !payload.isGoogleLogin) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        'You have to login with google ',
+      );
+    }
+
+    // If the user is not registered with Google but payload has isGoogleLogin
+    if (!user.isGoogleLogin && payload.isGoogleLogin) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        'You dont have google login with this email',
+      );
+    }
+
+    // Handle Google login case
+    if (user.isGoogleLogin) {
+      if (!user?.verification?.status) {
+        throw new AppError(
+          httpStatus.FORBIDDEN,
+          'User account is not verified',
+        );
+      }
+    } else {
+      // Handle non-Google login case, verify password
+      const passwordMatched = await User.isPasswordMatched(
+        payload.password as any,
+        user.password,
+      );
+      if (!passwordMatched) {
+        throw new AppError(httpStatus.BAD_REQUEST, 'Password does not match');
+      }
+    }
+
+    if (!user?.verification?.status) {
+      throw new AppError(httpStatus.FORBIDDEN, 'User account is not verified');
+    }
+
+    if (user.role === USER_ROLE.dealer && !user.isApproved) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        'Dealer account is not approved by admin',
+      );
+    }
   }
 
-  if (user?.isDeleted) {
-    throw new AppError(httpStatus.FORBIDDEN, 'This user is deleted');
-  }
-  const nn = await User.isPasswordMatched(payload.password, user.password);
-  console.log(nn);
-  if (!(await User.isPasswordMatched(payload.password, user.password))) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Password does not match');
-  }
-
-  if (!user?.verification?.status) {
-    throw new AppError(httpStatus.FORBIDDEN, 'User account is not verified');
-  }
-
-  if (user.role === USER_ROLE.dealer && !user.isApproved) {
-    throw new AppError(
-      httpStatus.FORBIDDEN,
-      'Dealer account is not approved by admin',
-    );
-  }
   const jwtPayload: { userId: string; role: string } = {
     userId: user?._id?.toString() as string,
     role: user?.role,

@@ -41,6 +41,8 @@ export interface IUser {
   freeExpairDate: Date;
   freeLimit: number;
   invoice_type: string;
+  carCreateLimit: number;
+  durationDay: number;
 }
 
 export interface UserModel extends Model<IUser> {

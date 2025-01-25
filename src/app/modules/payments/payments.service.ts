@@ -29,7 +29,6 @@ const stripe = new Stripe(config.stripe?.stripe_api_secret as string, {
 
 const checkout = async (payload: IPayment) => {
   const tranId = generateRandomString(10);
-  // console.log('pppppppppppppp', payload);
   let paymentData: IPayment;
   const subscription: ISubscriptions | null = await Subscription.findById(
     payload?.subscription,
@@ -107,14 +106,17 @@ const confirmPayment = async (query: Record<string, any>) => {
   const session = await startSession();
   const PaymentSession = await stripe.checkout.sessions.retrieve(sessionId);
   const paymentIntentId = PaymentSession.payment_intent as string;
+
   if (PaymentSession.status !== 'complete') {
     throw new AppError(
       httpStatus.BAD_REQUEST,
       'Payment session is not completed',
     );
   }
+
   try {
     session.startTransaction();
+
     const payment = await Payment.findByIdAndUpdate(
       paymentId,
       { isPaid: true, paymentIntentId: paymentIntentId },
@@ -143,28 +145,29 @@ const confirmPayment = async (query: Record<string, any>) => {
       .populate('package')
       .session(session);
 
+    if (!subscription) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Subscription Not Found!');
+    }
+
     let expiredAt;
 
-    // Check if the old subscription has an expiration date greater than now
     if (
       oldSubscription?.expiredAt &&
       moment(oldSubscription.expiredAt).isAfter(moment())
     ) {
-      // Calculate remaining time from the old expiration date
       const remainingTime = moment(oldSubscription.expiredAt).diff(moment());
       expiredAt = moment().add(remainingTime, 'milliseconds');
     } else {
       expiredAt = moment();
     }
 
-    // Add the new subscription's duration days
     if ((subscription?.package as IPackage)?.durationDay) {
       expiredAt = expiredAt.add(
         (subscription?.package as IPackage)?.durationDay,
         'days',
       );
     }
-    // Convert expiredAt back to a Date object if necessary
+
     expiredAt = expiredAt.toDate();
 
     await Subscription.findByIdAndUpdate(
@@ -172,40 +175,53 @@ const confirmPayment = async (query: Record<string, any>) => {
       {
         isPaid: true,
         trnId: payment?.tranId,
-        expiredAt: expiredAt,
       },
       {
         session,
       },
     ).populate('package');
 
-    if (!subscription) {
-      throw new AppError(httpStatus.NOT_FOUND, 'Subscription Not Found!');
+    // Update User with package values if applicable
+    const user = await User.findById(payment?.user).session(session);
+
+    if (!user) {
+      throw new AppError(httpStatus.NOT_FOUND, 'User Not Found!');
+    }
+
+    const packageDetails = subscription?.package as IPackage;
+    if (packageDetails) {
+      const { carCreateLimit, durationDay } = packageDetails;
+
+      user.carCreateLimit = (user.carCreateLimit || 0) + (carCreateLimit || 0);
+      user.durationDay = (user.durationDay || 0) + (durationDay || 0);
+
+      await user.save({ session });
     }
 
     await Package.findByIdAndUpdate(
-      (subscription?.package as IPackage)?._id,
+      packageDetails?._id,
       {
         $inc: { popularity: 1 },
       },
       { upsert: false, new: true, session },
     );
+
     const admin = await User.findOne({ role: USER_ROLE.admin });
 
     await Notification.create(
       [
         {
-          receiver: (payment?.user as IUser)?._id, // Receiver is the user
+          receiver: (payment?.user as IUser)?._id,
           message: 'Your subscription payment was successful!',
           description: `Your payment with ID ${payment._id} has been processed successfully. Thank you for subscribing!`,
-          refference: payment?._id, // Correct spelling should be `reference` unless it's intentional
+          refference: payment?._id,
           model_type: modeType?.Payment,
         },
         {
-          receiver: admin?._id, // Admin ID as the receiver
+          receiver: admin?._id,
           message: 'A new subscription payment has been made.',
           description: `User ${(payment.user as IUser)?.email} has successfully made a payment for their subscription. Payment ID: ${payment._id}.`,
-          refference: payment?._id, // Same note about `reference`
+          refference: payment?._id,
           model_type: modeType?.Payment,
         },
       ],
