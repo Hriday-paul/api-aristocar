@@ -46,7 +46,7 @@ const checkout = async (payload: IPayment) => {
   });
 
   const user = await User.findById(payload?.user); // Assuming you have a User model
-  let amount = payload.amount;
+  let amount = subscription?.amount;
   let vat = 0;
   let vatParcentage = 0;
   console.log('vat type', user?.vat_type);

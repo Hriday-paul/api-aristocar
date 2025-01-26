@@ -39,8 +39,6 @@ const createSubscription = async (payload: ISubscriptions) => {
       currentDate.getTime() + durationInMilliseconds,
     ); // Calculate expiration date
     console.log('Current Date:', payload.expiredAt);
-  } else {
-    throw new AppError(httpStatus.BAD_REQUEST, 'Duration day not found');
   }
 
   // Create the subscription
