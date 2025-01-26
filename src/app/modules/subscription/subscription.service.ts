@@ -81,7 +81,7 @@ const getSubscriptionById = async (userId: string) => {
   })
     .populate(['package', 'user'])
     .sort('-createdAt');
-  return [result];
+  return result ? [result] : [];
 };
 
 const getSubscriptionByUserId = async (id: string) => {
