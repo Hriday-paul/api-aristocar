@@ -209,7 +209,7 @@ const getBestDeals = async () => {
     .populate('model')
     .populate('creatorID')
     .sort({ view_count: -1 })
-    .limit(10);
+    .limit(6);
 
   return bestDeals;
 };
@@ -290,7 +290,7 @@ const getCarViewsByYear = async (userId: string, year: string) => {
 const getMostWantedCars = async (): Promise<ICar[]> => {
   const mostWantedCars = await CarModel.find({
     isMostWanted: true,
-  }).limit(6);
+  })
 
   return mostWantedCars;
 };
