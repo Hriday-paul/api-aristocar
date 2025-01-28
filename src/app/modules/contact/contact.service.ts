@@ -29,10 +29,6 @@ const createContact = async (payload: Icontact) => {
 
   const contacts = await contact.create(payload);
 
-
-
-
-
   if (!contacts) {
     throw new AppError(
       httpStatus.INTERNAL_SERVER_ERROR,

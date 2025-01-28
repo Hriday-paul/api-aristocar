@@ -4,8 +4,8 @@ import config from '../config';
 export const sendEmail = async (to: string, subject: string, html: string) => {
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com.',
-    port: 587,
-    secure: config.NODE_ENV === 'production',
+    port: process.env.EMAIL_ENV === 'production' ? 465 : 587,
+    secure: process.env.EMAIL_ENV === 'production',
     auth: {
       // TODO: replace `user` and `pass` values from <https://forwardemail.net>
       user: config.nodemailer_host_email,
