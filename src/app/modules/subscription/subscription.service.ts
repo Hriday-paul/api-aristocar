@@ -48,6 +48,12 @@ const createSubscription = async (payload: ISubscriptions) => {
       currentDate.getTime() + durationInMilliseconds,
     ); // Calculate expiration date
     console.log('Current Date:', payload.expiredAt);
+  } else {
+    const currentDate = new Date();
+    const durationInMilliseconds = packages.durationDay * 24 * 60 * 60 * 1000;
+    payload.expiredAt = new Date(
+      currentDate.getTime() + durationInMilliseconds,
+    );
   }
   // Create the subscription
   const result = await Subscription.create(payload);
