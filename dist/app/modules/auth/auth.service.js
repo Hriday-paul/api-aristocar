@@ -28,27 +28,56 @@ const fs_1 = __importDefault(require("fs"));
 const user_constants_1 = require("../user/user.constants");
 // Login
 const login = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
-    const user = yield user_models_1.User.isUserExist(payload === null || payload === void 0 ? void 0 : payload.email);
+    var _a, _b, _c;
+    let user = yield user_models_1.User.isUserExist(payload === null || payload === void 0 ? void 0 : payload.email);
     if (!user) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'User not found');
+        if (payload.isGoogleLogin) {
+            user = yield user_models_1.User.create({
+                email: payload.email,
+                isGoogleLogin: true,
+                password: '',
+                role: user_constants_1.USER_ROLE.user,
+                verification: {
+                    status: true,
+                },
+            });
+        }
+        else {
+            // If not a Google login and user not found, throw error
+            throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'User not found');
+        }
     }
-    if (user === null || user === void 0 ? void 0 : user.isDeleted) {
-        throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'This user is deleted');
-    }
-    const nn = yield user_models_1.User.isPasswordMatched(payload.password, user.password);
-    console.log(nn);
-    if (!(yield user_models_1.User.isPasswordMatched(payload.password, user.password))) {
-        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Password does not match');
-    }
-    if (!((_a = user === null || user === void 0 ? void 0 : user.verification) === null || _a === void 0 ? void 0 : _a.status)) {
-        throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'User account is not verified');
-    }
-    if (user.role === user_constants_1.USER_ROLE.dealer && !user.isApproved) {
-        throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'Dealer account is not approved by admin');
+    else {
+        if (user === null || user === void 0 ? void 0 : user.isDeleted) {
+            throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'This user is deleted');
+        }
+        // If the user is registered with Google, enforce Google login
+        if (user.isGoogleLogin && !payload.isGoogleLogin) {
+            throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'You have to login with google ');
+        }
+        // If the user is not registered with Google but payload has isGoogleLogin
+        if (!user.isGoogleLogin && payload.isGoogleLogin) {
+            throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'You dont have google login with this email');
+        }
+        // Handle Google login case
+        if (user.isGoogleLogin) {
+            if (!((_a = user === null || user === void 0 ? void 0 : user.verification) === null || _a === void 0 ? void 0 : _a.status)) {
+                throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'User account is not verified');
+            }
+        }
+        else {
+            // Handle non-Google login case, verify password
+            const passwordMatched = yield user_models_1.User.isPasswordMatched(payload.password, user.password);
+            if (!passwordMatched) {
+                throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Password does not match');
+            }
+        }
+        if (!((_b = user === null || user === void 0 ? void 0 : user.verification) === null || _b === void 0 ? void 0 : _b.status)) {
+            throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'User account is not verified');
+        }
     }
     const jwtPayload = {
-        userId: (_b = user === null || user === void 0 ? void 0 : user._id) === null || _b === void 0 ? void 0 : _b.toString(),
+        userId: (_c = user === null || user === void 0 ? void 0 : user._id) === null || _c === void 0 ? void 0 : _c.toString(),
         role: user === null || user === void 0 ? void 0 : user.role,
     };
     const accessToken = (0, auth_utils_1.createToken)(jwtPayload, config_1.default.jwt_access_secret, config_1.default.jwt_access_expires_in);

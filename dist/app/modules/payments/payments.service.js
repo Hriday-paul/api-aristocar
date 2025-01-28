@@ -29,6 +29,8 @@ const generateRandomString_1 = __importDefault(require("../../utils/generateRand
 const moment_1 = __importDefault(require("moment"));
 const notification_model_1 = require("../notification/notification.model");
 const packages_models_1 = __importDefault(require("../packages/packages.models"));
+const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
+const invoice_models_1 = __importDefault(require("../invoice/invoice.models"));
 const stripe = new stripe_1.default((_a = config_1.default.stripe) === null || _a === void 0 ? void 0 : _a.stripe_api_secret, {
     apiVersion: '2024-06-20',
     typescript: true,
@@ -39,28 +41,45 @@ const checkout = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     let paymentData;
     const subscription = yield subscription_models_1.default.findById(payload === null || payload === void 0 ? void 0 : payload.subscription).populate('package');
     if (!subscription) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'subscription Not Found!');
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Subscription Not Found!');
     }
+    // Check for existing unpaid payment for the subscription
     const isExistPayment = yield payments_models_1.default.findOne({
         subscription: payload === null || payload === void 0 ? void 0 : payload.subscription,
         isPaid: false,
         user: payload === null || payload === void 0 ? void 0 : payload.user,
     });
+    const user = yield user_models_1.User.findById(payload === null || payload === void 0 ? void 0 : payload.user); // Assuming you have a User model
+    let amount = subscription === null || subscription === void 0 ? void 0 : subscription.amount;
+    let vat = 0;
+    let vatParcentage = 0;
+    console.log('vat type', user === null || user === void 0 ? void 0 : user.vat_type);
+    if ((user === null || user === void 0 ? void 0 : user.vat_type) === 'Romanian') {
+        const vatRate = 0.19; // 19% VAT
+        const totalVat = (subscription === null || subscription === void 0 ? void 0 : subscription.amount) * vatRate;
+        amount = totalVat + (subscription === null || subscription === void 0 ? void 0 : subscription.amount);
+        vat = totalVat;
+        vatParcentage = vatRate;
+    }
     if (isExistPayment) {
         const payment = yield payments_models_1.default.findByIdAndUpdate(isExistPayment === null || isExistPayment === void 0 ? void 0 : isExistPayment._id, { tranId }, { new: true });
         paymentData = payment;
+        paymentData.amount = amount;
+        // Add VAT for users with vat_type = "Romania"
     }
     else {
         payload.tranId = tranId;
-        payload.amount = subscription === null || subscription === void 0 ? void 0 : subscription.amount;
+        payload.amount = amount;
+        payload.vatAmount = vat;
+        payload.vatParcentage = vatParcentage;
         const createdPayment = yield payments_models_1.default.create(payload);
         if (!createdPayment) {
             throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, 'Failed to create payment');
         }
         paymentData = createdPayment;
     }
-    if (!paymentData)
-        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'payment not found');
+    // if (!paymentData)
+    //   throw new AppError(httpStatus.BAD_REQUEST, 'payment not found');
     const checkoutSession = yield (0, payments_utils_1.createCheckoutSession)({
         // customerId: customer.id,
         product: {
@@ -75,7 +94,7 @@ const checkout = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     return checkoutSession === null || checkoutSession === void 0 ? void 0 : checkoutSession.url;
 });
 const confirmPayment = (query) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d;
     const { sessionId, paymentId } = query;
     const session = yield (0, mongoose_1.startSession)();
     const PaymentSession = yield stripe.checkout.sessions.retrieve(sessionId);
@@ -99,50 +118,57 @@ const confirmPayment = (query) => __awaiter(void 0, void 0, void 0, function* ()
         const subscription = yield subscription_models_1.default.findById(payment === null || payment === void 0 ? void 0 : payment.subscription)
             .populate('package')
             .session(session);
+        if (!subscription) {
+            throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Subscription Not Found!');
+        }
         let expiredAt;
-        // Check if the old subscription has an expiration date greater than now
         if ((oldSubscription === null || oldSubscription === void 0 ? void 0 : oldSubscription.expiredAt) &&
             (0, moment_1.default)(oldSubscription.expiredAt).isAfter((0, moment_1.default)())) {
-            // Calculate remaining time from the old expiration date
             const remainingTime = (0, moment_1.default)(oldSubscription.expiredAt).diff((0, moment_1.default)());
             expiredAt = (0, moment_1.default)().add(remainingTime, 'milliseconds');
         }
         else {
             expiredAt = (0, moment_1.default)();
         }
-        // Add the new subscription's duration days
         if ((_a = subscription === null || subscription === void 0 ? void 0 : subscription.package) === null || _a === void 0 ? void 0 : _a.durationDay) {
             expiredAt = expiredAt.add((_b = subscription === null || subscription === void 0 ? void 0 : subscription.package) === null || _b === void 0 ? void 0 : _b.durationDay, 'days');
         }
-        // Convert expiredAt back to a Date object if necessary
         expiredAt = expiredAt.toDate();
         yield subscription_models_1.default.findByIdAndUpdate(payment === null || payment === void 0 ? void 0 : payment.subscription, {
             isPaid: true,
             trnId: payment === null || payment === void 0 ? void 0 : payment.tranId,
-            expiredAt: expiredAt,
         }, {
             session,
         }).populate('package');
-        if (!subscription) {
-            throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Subscription Not Found!');
+        // Update User with package values if applicable
+        const user = yield user_models_1.User.findById(payment === null || payment === void 0 ? void 0 : payment.user).session(session);
+        if (!user) {
+            throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'User Not Found!');
         }
-        yield packages_models_1.default.findByIdAndUpdate((_c = subscription === null || subscription === void 0 ? void 0 : subscription.package) === null || _c === void 0 ? void 0 : _c._id, {
+        const packageDetails = subscription === null || subscription === void 0 ? void 0 : subscription.package;
+        if (packageDetails) {
+            const { carCreateLimit, durationDay } = packageDetails;
+            user.carCreateLimit = (user.carCreateLimit || 0) + (carCreateLimit || 0);
+            user.durationDay = (user.durationDay || 0) + (durationDay || 0);
+            yield user.save({ session });
+        }
+        yield packages_models_1.default.findByIdAndUpdate(packageDetails === null || packageDetails === void 0 ? void 0 : packageDetails._id, {
             $inc: { popularity: 1 },
         }, { upsert: false, new: true, session });
         const admin = yield user_models_1.User.findOne({ role: user_constants_1.USER_ROLE.admin });
         yield notification_model_1.Notification.create([
             {
-                receiver: (_d = payment === null || payment === void 0 ? void 0 : payment.user) === null || _d === void 0 ? void 0 : _d._id, // Receiver is the user
+                receiver: (_c = payment === null || payment === void 0 ? void 0 : payment.user) === null || _c === void 0 ? void 0 : _c._id,
                 message: 'Your subscription payment was successful!',
                 description: `Your payment with ID ${payment._id} has been processed successfully. Thank you for subscribing!`,
-                refference: payment === null || payment === void 0 ? void 0 : payment._id, // Correct spelling should be `reference` unless it's intentional
+                refference: payment === null || payment === void 0 ? void 0 : payment._id,
                 model_type: notification_interface_1.modeType === null || notification_interface_1.modeType === void 0 ? void 0 : notification_interface_1.modeType.Payment,
             },
             {
-                receiver: admin === null || admin === void 0 ? void 0 : admin._id, // Admin ID as the receiver
+                receiver: admin === null || admin === void 0 ? void 0 : admin._id,
                 message: 'A new subscription payment has been made.',
-                description: `User ${(_e = payment.user) === null || _e === void 0 ? void 0 : _e.email} has successfully made a payment for their subscription. Payment ID: ${payment._id}.`,
-                refference: payment === null || payment === void 0 ? void 0 : payment._id, // Same note about `reference`
+                description: `User ${(_d = payment.user) === null || _d === void 0 ? void 0 : _d.email} has successfully made a payment for their subscription. Payment ID: ${payment._id}.`,
+                refference: payment === null || payment === void 0 ? void 0 : payment._id,
                 model_type: notification_interface_1.modeType === null || notification_interface_1.modeType === void 0 ? void 0 : notification_interface_1.modeType.Payment,
             },
         ], { session });
@@ -260,111 +286,19 @@ const getEarnings = () => __awaiter(void 0, void 0, void 0, function* () {
     ]);
     const totalEarnings = ((earnings === null || earnings === void 0 ? void 0 : earnings.length) > 0 &&
         ((_b = (_a = earnings[0]) === null || _a === void 0 ? void 0 : _a.totalEarnings) === null || _b === void 0 ? void 0 : _b.length) > 0 &&
-        ((_d = (_c = earnings[0]) === null || _c === void 0 ? void 0 : _c.totalEarnings[0]) === null || _d === void 0 ? void 0 : _d.total)) ||
+        ((_d = (_c = earnings[0]) === null || _c === void 0 ? void 0 : _c.totalEarnings[0]) === null || _d === void 0 ? void 0 : _d.total.toFixed(2))) ||
         0;
-    const todayEarnings = ((earnings === null || earnings === void 0 ? void 0 : earnings.length) > 0 &&
-        ((_f = (_e = earnings[0]) === null || _e === void 0 ? void 0 : _e.todayEarnings) === null || _f === void 0 ? void 0 : _f.length) > 0 &&
-        ((_h = (_g = earnings[0]) === null || _g === void 0 ? void 0 : _g.todayEarnings[0]) === null || _h === void 0 ? void 0 : _h.total)) ||
+    const todayEarnings = ((earnings === null || earnings === void 0 ? void 0 : earnings.length) > 0 && ((_f = (_e = earnings[0]) === null || _e === void 0 ? void 0 : _e.todayEarnings) === null || _f === void 0 ? void 0 : _f.length) > 0 && ((_h = (_g = earnings[0]) === null || _g === void 0 ? void 0 : _g.todayEarnings[0]) === null || _h === void 0 ? void 0 : _h.total.toFixed(2))) ||
         0;
     const allData = ((_j = earnings[0]) === null || _j === void 0 ? void 0 : _j.allData) || [];
     return { totalEarnings, todayEarnings, allData };
 });
-// const getEarnings = async () => {
-//   const today = moment().startOf('day');
-//   const earnings = await Payment.aggregate([
-//     {
-//       $match: {
-//         isPaid: true,
-//       },
-//     },
-//     {
-//       $facet: {
-//         totalEarnings: [
-//           {
-//             $group: {
-//               _id: null,
-//               total: { $sum: '$amount' },
-//             },
-//           },
-//         ],
-//         todayEarnings: [
-//           {
-//             $match: {
-//               isDeleted: false,
-//               createdAt: {
-//                 $gte: today.toDate(),
-//                 $lte: today.endOf('day').toDate(),
-//               },
-//             },
-//           },
-//           {
-//             $group: {
-//               _id: null,
-//               total: { $sum: '$amount' }, // Sum of today's earnings
-//             },
-//           },
-//         ],
-//         allData: [
-//           {
-//             $lookup: {
-//               from: 'users',
-//               localField: 'user',
-//               foreignField: '_id',
-//               as: 'userDetails',
-//             },
-//           },
-//           {
-//             $lookup: {
-//               from: 'subscription',
-//               localField: 'subscription',
-//               foreignField: '_id',
-//               as: 'subscriptionDetails',
-//             },
-//           },
-//           {
-//             $project: {
-//               user: { $arrayElemAt: ['$userDetails', 0] },
-//               subscription: { $arrayElemAt: ['$subscriptionDetails', 0] },
-//               amount: 1,
-//               tranId: 1,
-//               status: 1,
-//               id: 1,
-//               _id: 1,
-//               createdAt: 1,
-//               updatedAt: 1,
-//             },
-//           },
-//           {
-//             $sort: {
-//               createdAt: -1,
-//             },
-//           },
-//         ],
-//       },
-//     },
-//   ]);
-//   const totalEarnings =
-//     (earnings?.length > 0 &&
-//       earnings[0]?.totalEarnings?.length > 0 &&
-//       earnings[0]?.totalEarnings[0]?.total) ||
-//     0;
-//   const todayEarnings =
-//     (earnings?.length > 0 &&
-//       earnings[0]?.todayEarnings?.length > 0 &&
-//       earnings[0]?.todayEarnings[0]?.total) ||
-//     0;
-//   const allData = earnings[0]?.allData || [];
-//   return { totalEarnings, todayEarnings, allData };
-// };
 const dashboardData = (query) => __awaiter(void 0, void 0, void 0, function* () {
     var _a, _b, _c, _d, _e, _f, _g, _h;
     const usersData = yield user_models_1.User.aggregate([
         {
             $facet: {
-                totalUsers: [
-                    { $match: { 'verification.status': true } },
-                    { $count: 'count' },
-                ],
+                totalUsers: [{ $match: { status: 'active' } }, { $count: 'count' }],
                 userDetails: [
                     { $match: { role: { $ne: user_constants_1.USER_ROLE.admin } } },
                     {
@@ -494,10 +428,7 @@ const dashboardData = (query) => __awaiter(void 0, void 0, void 0, function* () 
     const monthlyUser = yield user_models_1.User.aggregate([
         {
             $match: {
-                'verification.status': true,
-                role: query.role === 'customer'
-                    ? user_constants_1.USER_ROLE.user
-                    : user_constants_1.USER_ROLE.service_provider,
+                status: 'active',
                 createdAt: {
                     $gte: startOfUserYear.toDate(),
                     $lte: endOfUserYear.toDate(),
@@ -541,15 +472,24 @@ const getAllPayments = () => __awaiter(void 0, void 0, void 0, function* () {
     }
     return payments;
 });
-const getPaymentsByUserId = (userId) => __awaiter(void 0, void 0, void 0, function* () {
-    const payment = yield payments_models_1.default.find({ user: userId }).populate({
+const getPaymentsByUserId = (userId, query) => __awaiter(void 0, void 0, void 0, function* () {
+    const paymentQueryBuilder = new QueryBuilder_1.default(payments_models_1.default.find({ user: userId, isPaid: true }).populate({
         path: 'subscription',
         populate: { path: 'package' },
-    });
-    if (!payment) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Payment not found');
-    }
-    return payment;
+    }).populate('user'), query)
+        .search(['paymentStatus', 'transactionId', 'subscription.name'])
+        .filter()
+        .paginate()
+        .sort();
+    const data = yield paymentQueryBuilder.modelQuery;
+    const meta = yield paymentQueryBuilder.countTotal();
+    // if (!data || data.length === 0) {
+    //   throw new AppError(httpStatus.NOT_FOUND, 'No payments found for the user');
+    // }
+    return {
+        data,
+        meta,
+    };
 });
 // Get a payment by ID
 const getPaymentsById = (id) => __awaiter(void 0, void 0, void 0, function* () {
@@ -577,6 +517,75 @@ const deletePayments = (id) => __awaiter(void 0, void 0, void 0, function* () {
     }
     return deletedPayment;
 });
+const generateInvoice = (payload) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const existingInvoice = yield invoice_models_1.default
+        .findOne({ paymentId: payload })
+        .populate([
+        {
+            path: 'paymentId',
+            populate: [
+                {
+                    path: 'user',
+                },
+                {
+                    path: 'subscription',
+                    populate: { path: 'package', model: 'Package' },
+                },
+            ],
+        },
+    ]);
+    if (existingInvoice) {
+        return existingInvoice;
+    }
+    const payment = yield payments_models_1.default.findById(payload)
+        .populate({
+        path: 'user',
+        model: user_models_1.User,
+        strictPopulate: false,
+    })
+        .populate({
+        path: 'subscription',
+        model: subscription_models_1.default,
+        strictPopulate: false,
+        populate: {
+            path: 'package',
+            model: 'Package',
+        },
+    });
+    if (!payment) {
+        throw new Error('Payment not found');
+    }
+    const users = payment.user;
+    // if (users.vat_status !== 'valid') {
+    //   throw new Error('VAT status is not valid for the user');
+    // }
+    const vatAmount = users.vat_type === 'Romania' ? 0.19 : 0;
+    const packageAmount = ((_a = payment.subscription.package) === null || _a === void 0 ? void 0 : _a.price) || 0;
+    const totalAmount = packageAmount * (1 + vatAmount);
+    const invoiceNumber = `INV-${Date.now()}`;
+    const invoiceDate = new Date();
+    const invoices = new invoice_models_1.default({
+        paymentId: payment._id,
+        invoiceNumber,
+        invoiceDate,
+        totalAmount: totalAmount.toFixed(2), // Store total amount as a string
+    });
+    const result = yield (yield invoice_models_1.default.create(invoices)).populate([
+        {
+            path: 'paymentId',
+            populate: [
+                {
+                    path: 'user',
+                    select: 'name phoneNumber companyName dealership vat_type vat_status',
+                },
+                { path: 'subscription', populate: { path: 'package' } },
+            ],
+        },
+    ]);
+    // Respond with the invoice details
+    return result;
+});
 exports.paymentsService = {
     // createPayments,
     getAllPayments,
@@ -588,4 +597,5 @@ exports.paymentsService = {
     dashboardData,
     getEarnings,
     getPaymentsByUserId,
+    generateInvoice,
 };

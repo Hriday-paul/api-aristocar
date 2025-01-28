@@ -17,6 +17,7 @@ const http_status_1 = __importDefault(require("http-status"));
 const AppError_1 = __importDefault(require("../../error/AppError"));
 const brands_models_1 = __importDefault(require("../brands/brands.models"));
 const models_models_1 = __importDefault(require("./models.models"));
+const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const createmodels = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const brands = yield brands_models_1.default.findById(payload.brandId);
     if (!brands) {
@@ -37,9 +38,16 @@ const getModelsByBrand = (brandId) => __awaiter(void 0, void 0, void 0, function
     };
 });
 exports.getModelsByBrand = getModelsByBrand;
-const getAllmodels = () => __awaiter(void 0, void 0, void 0, function* () {
-    const models = yield models_models_1.default.find().populate('brand');
-    return models;
+const getAllmodels = (query) => __awaiter(void 0, void 0, void 0, function* () {
+    const modelQuery = new QueryBuilder_1.default(models_models_1.default.find({}).populate('brandId'), query).search(['modelName']);
+    const data = yield modelQuery.modelQuery;
+    const meta = yield modelQuery.countTotal();
+    if (!data || data.length === 0) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'No models found');
+    }
+    return {
+        data,
+    };
 });
 const getmodelsById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const model = yield models_models_1.default.findById(id).populate('brand');

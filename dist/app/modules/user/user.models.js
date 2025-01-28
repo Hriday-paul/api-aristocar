@@ -17,6 +17,7 @@ const mongoose_1 = require("mongoose");
 const config_1 = __importDefault(require("../../config"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const user_constants_1 = require("./user.constants");
+const node_cron_1 = __importDefault(require("node-cron"));
 const userSchema = new mongoose_1.Schema({
     status: {
         type: String,
@@ -25,7 +26,7 @@ const userSchema = new mongoose_1.Schema({
     },
     name: {
         type: String,
-        required: true,
+        // required: true,
         default: null,
     },
     email: {
@@ -71,7 +72,38 @@ const userSchema = new mongoose_1.Schema({
         type: String,
         default: null,
     },
-    address: {
+    user_address: {
+        type: String,
+        default: null,
+    },
+    dealer_address: {
+        city: {
+            type: String,
+            default: null,
+        },
+        country: {
+            type: String,
+            default: null,
+        },
+        post_code: {
+            type: String,
+            default: null,
+        },
+        vat_id: {
+            type: String,
+            default: null,
+        },
+        street: {
+            type: String,
+            default: null,
+        },
+    },
+    vat_status: {
+        type: String,
+        enum: ['valid', 'vat not valid'],
+        default: 'valid',
+    },
+    vat_type: {
         type: String,
         default: null,
     },
@@ -106,6 +138,12 @@ const userSchema = new mongoose_1.Schema({
         type: Date,
     },
     freeLimit: {
+        type: Number,
+    },
+    carCreateLimit: {
+        type: Number,
+    },
+    durationDay: {
         type: Number,
     },
 }, {
@@ -144,3 +182,21 @@ userSchema.statics.isPasswordMatched = function (plainTextPassword, hashedPasswo
     });
 };
 exports.User = (0, mongoose_1.model)('User', userSchema);
+// Daily Cron Job to decrement durationDay
+node_cron_1.default.schedule('0 0 * * *', () => __awaiter(void 0, void 0, void 0, function* () {
+    console.log('Running daily job to decrement durationDay...');
+    try {
+        const users = yield exports.User.find({ durationDay: { $gt: 0 } });
+        for (const user of users) {
+            user.durationDay -= 1; // Decrement durationDay
+            if (user.durationDay === 0) {
+                user.carCreateLimit = 0; // Reset carCreateLimit if durationDay expires
+            }
+            yield user.save(); // Save the updated user
+        }
+        console.log('Daily job completed successfully.');
+    }
+    catch (error) {
+        console.error('Error running daily job:', error);
+    }
+}));

@@ -33,7 +33,6 @@ const DealerContactSchema = new mongoose_1.Schema({
     carId: {
         type: mongoose_1.default.Schema.Types.ObjectId,
         ref: 'Car',
-        required: true,
     },
     userId: {
         type: mongoose_1.default.Schema.Types.ObjectId,

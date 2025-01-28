@@ -25,12 +25,12 @@ const createcontact = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,
-        message: 'Packages created successfully',
+        message: 'Message sent successfully',
         data: result,
     });
 }));
 const getAllcontact = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield contact_service_1.contactService.getAllcontact();
+    const result = yield contact_service_1.contactService.getAllcontact(req.query);
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,

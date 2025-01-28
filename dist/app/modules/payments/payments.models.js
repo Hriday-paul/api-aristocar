@@ -30,6 +30,14 @@ const PaymentSchema = new mongoose_1.Schema({
         type: String,
         required: true,
     },
+    vatAmount: {
+        type: Number,
+        required: true,
+    },
+    vatParcentage: {
+        type: Number,
+        required: true,
+    },
 }, {
     timestamps: true,
 });

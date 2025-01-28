@@ -16,7 +16,14 @@ exports.brandsController = void 0;
 const catchAsync_1 = __importDefault(require("../../utils/catchAsync"));
 const brands_service_1 = require("./brands.service");
 const sendResponse_1 = __importDefault(require("../../utils/sendResponse"));
+const s3_1 = require("../../utils/s3");
 const createbrands = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (req.file) {
+        req.body.image = yield (0, s3_1.uploadToS3)({
+            file: req.file,
+            fileName: `images/brand/logo/${Math.floor(100000 + Math.random() * 900000)}`,
+        });
+    }
     const result = yield brands_service_1.brandsService.createbrands(req.body);
     (0, sendResponse_1.default)(res, {
         statusCode: 201,
@@ -26,7 +33,7 @@ const createbrands = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, v
     });
 }));
 const getAllbrands = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield brands_service_1.brandsService.getAllbrands();
+    const result = yield brands_service_1.brandsService.getAllbrands(req.query);
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,
@@ -44,8 +51,23 @@ const getbrandsById = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
         data: result,
     });
 }));
+const getHomeShow = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield brands_service_1.brandsService.getHomeShow();
+    (0, sendResponse_1.default)(res, {
+        statusCode: 200,
+        success: true,
+        message: 'Brands fetched successfully',
+        data: result,
+    });
+}));
 const updatebrands = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
+    if (req.file) {
+        req.body.image = yield (0, s3_1.uploadToS3)({
+            file: req.file,
+            fileName: `images/brand/logo/${Math.floor(100000 + Math.random() * 900000)}`,
+        });
+    }
     const result = yield brands_service_1.brandsService.updatebrands(id, req.body);
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
@@ -70,4 +92,5 @@ exports.brandsController = {
     getbrandsById,
     updatebrands,
     deletebrands,
+    getHomeShow,
 };

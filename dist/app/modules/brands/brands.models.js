@@ -30,6 +30,14 @@ const BrandsSchema = new mongoose_1.Schema({
         type: String,
         required: true,
     },
+    image: {
+        type: String,
+        default: null,
+    },
+    isHome: {
+        type: Boolean,
+        default: false,
+    },
 }, { timestamps: true });
 const brand = mongoose_1.default.model('brand', BrandsSchema);
 exports.default = brand;

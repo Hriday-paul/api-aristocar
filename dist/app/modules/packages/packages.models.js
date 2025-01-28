@@ -16,19 +16,5 @@ const PackageSchema = new mongoose_1.Schema({
 }, {
     timestamps: true,
 });
-PackageSchema.pre('find', function (next) {
-    //@ts-ignore
-    this.find({ isDeleted: { $ne: true } });
-    next();
-});
-PackageSchema.pre('findOne', function (next) {
-    //@ts-ignore
-    this.find({ isDeleted: { $ne: true } });
-    next();
-});
-PackageSchema.pre('aggregate', function (next) {
-    this.pipeline().unshift({ $match: { isDeleted: { $ne: true } } });
-    next();
-});
 const Package = (0, mongoose_1.model)('Package', PackageSchema);
 exports.default = Package;

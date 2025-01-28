@@ -21,6 +21,45 @@ const config_1 = __importDefault(require("../../config"));
 // login
 const login = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield auth_service_1.authServices.login(req.body);
+    // Check if the user role is 'admin'
+    // console.log(result.user.role);
+    if (result.user.role === 'admin') {
+        (0, sendResponse_1.default)(res, {
+            statusCode: http_status_1.default.FORBIDDEN,
+            success: false,
+            message: 'Logged in failed',
+            data: {},
+        });
+    }
+    const { refreshToken } = result;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cookieOptions = {
+        secure: false,
+        httpOnly: true,
+        maxAge: 31536000000,
+    };
+    if (config_1.default.NODE_ENV === 'production') {
+        cookieOptions.sameSite = 'none';
+    }
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Logged in successfully',
+        data: result,
+    });
+}));
+const adminLogin = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield auth_service_1.authServices.login(req.body);
+    // Check if the user role is 'admin'
+    if (result.user.role !== 'admin') {
+        (0, sendResponse_1.default)(res, {
+            statusCode: http_status_1.default.FORBIDDEN,
+            success: false,
+            message: 'Logged in failed your not are admins',
+            data: {},
+        });
+    }
     const { refreshToken } = result;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const cookieOptions = {
@@ -74,7 +113,7 @@ const resetPassword = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, 
 }));
 // refresh token
 const refreshToken = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { refreshToken } = req.cookies;
+    const { refreshToken } = req.body;
     const result = yield auth_service_1.authServices.refreshToken(refreshToken);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
@@ -89,4 +128,5 @@ exports.authControllers = {
     forgotPassword,
     resetPassword,
     refreshToken,
+    adminLogin,
 };

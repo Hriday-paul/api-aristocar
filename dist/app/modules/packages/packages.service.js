@@ -25,7 +25,7 @@ const createPackages = (payload) => __awaiter(void 0, void 0, void 0, function* 
     return packages;
 });
 const getAllPackages = (query) => __awaiter(void 0, void 0, void 0, function* () {
-    const packagesModel = new QueryBuilder_1.default(packages_models_1.default.find(), query)
+    const packagesModel = new QueryBuilder_1.default(packages_models_1.default.find({ isDeleted: false }), query)
         .search(['title'])
         .filter()
         .paginate()
@@ -40,7 +40,7 @@ const getAllPackages = (query) => __awaiter(void 0, void 0, void 0, function* ()
 });
 const getPackagesById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield packages_models_1.default.findById(id);
-    if (!result) {
+    if (!result || (result === null || result === void 0 ? void 0 : result.isDeleted)) {
         throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Packages not found');
     }
     return result;

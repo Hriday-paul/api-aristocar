@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.contactService = void 0;
 const http_status_1 = __importDefault(require("http-status"));
 const AppError_1 = __importDefault(require("../../error/AppError"));
+const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const contact_models_1 = __importDefault(require("./contact.models"));
 const createContact = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const contacts = yield contact_models_1.default.create(payload);
@@ -23,36 +24,18 @@ const createContact = (payload) => __awaiter(void 0, void 0, void 0, function* (
     }
     return contacts;
 });
-// const admin = await User.findOne({ role: 'admin' });
-// if (!admin || !admin.email) {
-//   throw new AppError(
-//     httpStatus.INTERNAL_SERVER_ERROR,
-//     'Admin email not found',
-//   );
-// }
-// const emailTemplatePath = path.join(
-//   __dirname,
-//   '../../../../public/view/contact_mail.html',
-// );
-// if (!fs.existsSync(emailTemplatePath)) {
-//   throw new AppError(
-//     httpStatus.INTERNAL_SERVER_ERROR,
-//     'Email template not found',
-//   );
-// }
-// const emailTemplate = fs.readFileSync(emailTemplatePath, 'utf8');
-// const emailContent = emailTemplate
-//   .replace('{{firstName}}', payload.firstName)
-//   .replace('{{lastName}}', payload.lastName)
-//   .replace('{{email}}', payload.email)
-//   .replace('{{description}}', payload.description);
-// await sendEmail(admin.email, 'A new contact has been added', emailContent);
-const getAllcontact = () => __awaiter(void 0, void 0, void 0, function* () {
-    const contacts = yield contact_models_1.default.find();
-    if (!contacts) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'No contacts found');
-    }
-    return contacts;
+const getAllcontact = (query) => __awaiter(void 0, void 0, void 0, function* () {
+    const contactModel = new QueryBuilder_1.default(contact_models_1.default.find(), query)
+        .search(['name', 'email', 'phoneNumber', 'status'])
+        .filter()
+        .paginate()
+        .sort();
+    const data = yield contactModel.modelQuery;
+    const meta = yield contactModel.countTotal();
+    return {
+        data,
+        meta,
+    };
 });
 const getcontactById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const contactById = yield contact_models_1.default.findById(id);

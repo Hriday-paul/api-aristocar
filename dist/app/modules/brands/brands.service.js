@@ -16,6 +16,7 @@ exports.brandsService = void 0;
 const http_status_1 = __importDefault(require("http-status"));
 const AppError_1 = __importDefault(require("../../error/AppError"));
 const brands_models_1 = __importDefault(require("./brands.models"));
+const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const createbrands = (payload) => __awaiter(void 0, void 0, void 0, function* () {
     const existingBrand = yield brands_models_1.default.findOne({ brandName: payload.brandName });
     if (existingBrand) {
@@ -24,15 +25,30 @@ const createbrands = (payload) => __awaiter(void 0, void 0, void 0, function* ()
     const newBrand = yield brands_models_1.default.create(payload);
     return newBrand;
 });
-const getAllbrands = () => __awaiter(void 0, void 0, void 0, function* () {
-    const brands = yield brands_models_1.default.find();
-    return brands;
+const getAllbrands = (query) => __awaiter(void 0, void 0, void 0, function* () {
+    const brandModel = new QueryBuilder_1.default(brands_models_1.default.find({}), query)
+        .search(['brandName'])
+        .filter()
+        .paginate()
+        .sort();
+    const data = yield brandModel.modelQuery;
+    const meta = yield brandModel.countTotal();
+    if (!data || data.length === 0) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'No brands found');
+    }
+    return {
+        data,
+    };
 });
 const getbrandsById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const brands = yield brands_models_1.default.findById(id);
     if (!brands) {
         throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Brand not found');
     }
+    return brands;
+});
+const getHomeShow = () => __awaiter(void 0, void 0, void 0, function* () {
+    const brands = yield brands_models_1.default.find({ isHome: true });
     return brands;
 });
 const updatebrands = (id, payload) => __awaiter(void 0, void 0, void 0, function* () {
@@ -56,4 +72,5 @@ exports.brandsService = {
     getbrandsById,
     updatebrands,
     deletebrands,
+    getHomeShow,
 };

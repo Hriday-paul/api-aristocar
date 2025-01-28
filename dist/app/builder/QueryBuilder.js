@@ -153,6 +153,35 @@ class QueryBuilder {
         }
         return this;
     }
+    // search(searchableFields: string[]) {
+    //   const searchTerm =
+    //     typeof this.query?.searchTerm === 'string'
+    //       ? this.query.searchTerm.trim()
+    //       : null;
+    //   if (searchTerm) {
+    //     const orConditions = searchableFields.map(field => {
+    //       // Check if field contains a dot (nested path)
+    //       if (field.includes('.')) {
+    //         const [rootField, nestedField] = field.split('.');
+    //         return {
+    //           $expr: {
+    //             $regexMatch: {
+    //               input: `$${rootField}.${nestedField}`, // Access nested field
+    //               regex: searchTerm,
+    //               options: 'i',
+    //             },
+    //           },
+    //         };
+    //       } else {
+    //         return {
+    //           [field]: { $regex: searchTerm, $options: 'i' },
+    //         };
+    //       }
+    //     });
+    //     this.modelQuery = this.modelQuery.find({ $or: orConditions });
+    //   }
+    //   return this;
+    // }
     // Filter
     filter() {
         const queryObj = Object.assign({}, this.query); // Copy

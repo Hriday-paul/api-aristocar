@@ -17,25 +17,17 @@ const catchAsync_1 = __importDefault(require("../../utils/catchAsync"));
 const user_service_1 = require("./user.service");
 const sendResponse_1 = __importDefault(require("../../utils/sendResponse"));
 const http_status_1 = __importDefault(require("http-status"));
+const s3_1 = require("../../utils/s3");
 const otp_service_1 = require("../otp/otp.service");
-const user_models_1 = require("./user.models");
-const fileHelper_1 = require("../../utils/fileHelper");
 const AppError_1 = __importDefault(require("../../error/AppError"));
 const createUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
     // return res.send({data: req.body})
     if (req.file) {
-        req.body.image = (0, fileHelper_1.storeFile)('profile', (_a = req === null || req === void 0 ? void 0 : req.file) === null || _a === void 0 ? void 0 : _a.filename);
+        req.body.image = yield (0, s3_1.uploadToS3)({
+            file: req.file, // Ensure it's req.file for a single file
+            fileName: `images/user/profile/${Math.floor(100000 + Math.random() * 900000)}`,
+        });
     }
-    // if (req.files) {
-    //   const { image } = req.files as UploadedFiles;
-    //   if (image) {
-    //     req.body.image = await uploadToS3({
-    //       file: req.file,
-    //       fileName: `images/user/profile/${Math.floor(100000 + Math.random() * 900000)}`,
-    //     });
-    //   }
-    // }
     const result = yield user_service_1.userService.createUser(req.body);
     const sendOtp = yield otp_service_1.otpServices.resendOtp(result === null || result === void 0 ? void 0 : result.email);
     (0, sendResponse_1.default)(res, {
@@ -51,6 +43,25 @@ const getAllUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, voi
         statusCode: http_status_1.default.OK,
         success: true,
         message: 'Users fetched successfully',
+        data: result,
+    });
+}));
+const getAllUserByYearandmonth = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const year = req.params.year;
+    const result = yield user_service_1.userService.getAllUserByYearandmonth(year);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Users fetched successfully',
+        data: result,
+    });
+}));
+const getAllDealers = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield user_service_1.userService.getAllDealers(req.query);
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Dealers fetched successfully',
         data: result,
     });
 }));
@@ -74,38 +85,33 @@ const getMyProfile = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, v
     });
 }));
 const updateUser = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
-    yield user_models_1.User.findById(req.params.id);
+    // Handle file upload
     if (req.file) {
-        req.body.image = (0, fileHelper_1.storeFile)('profile', (_a = req === null || req === void 0 ? void 0 : req.file) === null || _a === void 0 ? void 0 : _a.filename);
+        req.body.image = yield (0, s3_1.uploadToS3)({
+            file: req.file,
+            fileName: `images/user/profile/${Math.floor(100000 + Math.random() * 900000)}`,
+        });
     }
-    // if (req?.file) {
-    //   req.body.image = await uploadToS3({
-    //     file: req.file,
-    //     fileName: `images/user/profile/${Math.floor(100000 + Math.random() * 900000)}`,
-    //   });
-    // }
-    const result = yield user_service_1.userService.updateUser(req.params.id, req.body);
+    // Call the service to update the user
+    const updatedUser = yield user_service_1.userService.updateUser(req.params.id, req.body);
+    // Respond with the updated user data
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
         message: 'User updated successfully',
-        data: result,
+        data: updatedUser,
     });
 }));
 const updateMyProfile = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
-    yield user_models_1.User.findById(req.user.userId);
-    // if (req?.file) {
-    //   req.body.image = await uploadToS3({
-    //     file: req.file,
-    //     fileName: `images/user/profile/${Math.floor(100000 + Math.random() * 900000)}`,
-    //   });
-    // }
+    var _a;
+    const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
     if (req.file) {
-        req.body.image = (0, fileHelper_1.storeFile)('profile', (_a = req === null || req === void 0 ? void 0 : req.file) === null || _a === void 0 ? void 0 : _a.filename);
+        req.body.image = yield (0, s3_1.uploadToS3)({
+            file: req.file,
+            fileName: `images/user/profile/${Math.floor(100000 + Math.random() * 900000)}`,
+        });
     }
-    const result = yield user_service_1.userService.updateUser((_b = req === null || req === void 0 ? void 0 : req.user) === null || _b === void 0 ? void 0 : _b.userId, req.body);
+    const result = yield user_service_1.userService.updateUser(userId, req.body);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -166,4 +172,6 @@ exports.userController = {
     deleteMYAccount,
     getAllDealerRequests,
     handleDealerRequest,
+    getAllUserByYearandmonth,
+    getAllDealers,
 };

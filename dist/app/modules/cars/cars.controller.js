@@ -19,67 +19,54 @@ const fileHelper_1 = require("../../utils/fileHelper");
 const sendResponse_1 = __importDefault(require("../../utils/sendResponse"));
 const http_status_1 = __importDefault(require("http-status"));
 const AppError_1 = __importDefault(require("../../error/AppError"));
-const cars_models_1 = require("./cars.models");
-const subscription_models_1 = __importDefault(require("../subscription/subscription.models"));
 const user_models_1 = require("../user/user.models");
-const mongoose_1 = require("mongoose");
+const user_constants_1 = require("../user/user.constants");
 const createcars = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-    const subscription = yield subscription_models_1.default.findOne({
-        user: new mongoose_1.Types.ObjectId(userId),
-        isExpired: false,
-        isDeleted: false,
-    }).populate('package');
-    if (!subscription) {
-        const user = yield user_models_1.User.findById(userId);
-        const currentDate = new Date();
-        if (!(user === null || user === void 0 ? void 0 : user.freeExpairDate) || currentDate > user.freeExpairDate) {
-            return (0, sendResponse_1.default)(res, {
-                statusCode: http_status_1.default.BAD_REQUEST,
-                success: false,
-                message: 'Your free car creation period has expired.',
-                data: {},
-            });
-        }
-        const createdCarsCount = yield cars_service_1.carsService.getcarsCountBycreatorId(userId);
-        if (Number(createdCarsCount) >= (Number(user.freeLimit) || 0)) {
-            return (0, sendResponse_1.default)(res, {
-                statusCode: http_status_1.default.BAD_REQUEST,
-                success: false,
-                message: 'You have reached the free car creation limit.',
-                data: {},
-            });
-        }
-    }
-    else {
-        const { expiredAt } = subscription;
-        const currentDate = new Date();
-        if (!expiredAt || currentDate > expiredAt) {
-            subscription.isExpired = true;
-            yield subscription.save();
-            return (0, sendResponse_1.default)(res, {
-                statusCode: http_status_1.default.BAD_REQUEST,
-                success: false,
-                message: 'Your subscription has expired.',
-                data: {},
-            });
-        }
-        const { carCreateLimit } = subscription.package;
-        const createdCarsCount = yield cars_models_1.CarModel.countDocuments({
-            creatorID: new mongoose_1.Types.ObjectId(userId),
+    // Fetch the user from the database
+    const user = yield user_models_1.User.findById(userId);
+    if (!user) {
+        return res.status(http_status_1.default.NOT_FOUND).json({
+            success: false,
+            message: 'User not found',
         });
-        if (createdCarsCount >= carCreateLimit) {
-            return (0, sendResponse_1.default)(res, {
-                statusCode: http_status_1.default.BAD_REQUEST,
-                success: false,
-                message: 'You have reached the car creation limit for your package.',
-                data: {},
-            });
-        }
     }
+    if (user.role === user_constants_1.USER_ROLE.dealer && !user.isApproved) {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'Dealer account is not approved by admin');
+    }
+    // Check if the user has valid limits to create cars
+    const currentDate = new Date();
+    let canCreateCar = false;
+    if (user.freeExpairDate &&
+        currentDate <= user.freeExpairDate &&
+        user.freeLimit > 0) {
+        canCreateCar = true; // Free limit is valid
+    }
+    else if (user.carCreateLimit &&
+        user.carCreateLimit > 0 &&
+        user.durationDay) {
+        canCreateCar = true; // Paid limit is valid
+    }
+    if (!canCreateCar) {
+        return res.status(http_status_1.default.FORBIDDEN).json({
+            success: false,
+            message: 'You have reached your car creation limit',
+        });
+    }
+    // Create the car
     req.body.creatorID = userId;
     const result = yield cars_service_1.carsService.createcars(req.body, req.files);
+    // Deduct the limit after car creation
+    if (user.freeExpairDate && currentDate <= user.freeExpairDate) {
+        user.freeLimit -= 1; // Deduct from free limit
+    }
+    else if (user.carCreateLimit && user.carCreateLimit > 0) {
+        user.carCreateLimit -= 1; // Deduct from paid limit
+    }
+    // Save the updated user data
+    yield user.save();
+    // Send the response
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -105,6 +92,15 @@ const getcarsById = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, vo
         data: { car },
     });
 }));
+const getBestDeals = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const bestDeals = yield cars_service_1.carsService.getBestDeals();
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Best deals retrieved successfully',
+        data: { bestDeals },
+    });
+}));
 const getcarsByCreatorId = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const car = yield cars_service_1.carsService.getcarsByCreatorId(req.params.creatorID);
     (0, sendResponse_1.default)(res, {
@@ -117,9 +113,6 @@ const getcarsByCreatorId = (0, catchAsync_1.default)((req, res) => __awaiter(voi
 const getcarsCountBycreatorId = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const creatorID = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-    if (!creatorID) {
-        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'User not found');
-    }
     const count = yield cars_service_1.carsService.getcarsCountBycreatorId(creatorID);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
@@ -131,9 +124,16 @@ const getcarsCountBycreatorId = (0, catchAsync_1.default)((req, res) => __awaite
 const updatecars = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
     if (req.files && Array.isArray(req.files)) {
         const uploadedImages = req.files.map(file => (0, fileHelper_1.storeFile)('carpictures', file.filename));
+        // Check for banner image
+        if (req.files &&
+            'bannerImage' in req.files &&
+            Array.isArray(req.files['bannerImage'])) {
+            const uploadedBannerImages = req.files['bannerImage'].map(file => (0, fileHelper_1.storeFile)('carbanner', file.filename));
+            req.body.bannerImage = uploadedBannerImages; // Store banner images
+        }
         req.body.images = uploadedImages;
     }
-    const car = yield cars_service_1.carsService.updatecars(req.params.id, req.body);
+    const car = yield cars_service_1.carsService.updatecars(req.params.id, req.body, req.files);
     (0, sendResponse_1.default)(res, {
         statusCode: http_status_1.default.OK,
         success: true,
@@ -147,7 +147,7 @@ const deletecars = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, voi
         statusCode: http_status_1.default.OK,
         success: true,
         message: 'Car deleted successfully',
-        data: null,
+        data: {},
     });
 }));
 const getUserCarViewsByYear = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
@@ -170,6 +170,15 @@ const getUserCarViewsByYear = (0, catchAsync_1.default)((req, res) => __awaiter(
         data: carViewsByMonth,
     });
 }));
+const getMostWantedCars = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const cars = yield cars_service_1.carsService.getMostWantedCars();
+    (0, sendResponse_1.default)(res, {
+        statusCode: http_status_1.default.OK,
+        success: true,
+        message: 'Most wanted cars retrieved successfully',
+        data: cars,
+    });
+}));
 exports.carsController = {
     createcars,
     getAllcars,
@@ -179,4 +188,6 @@ exports.carsController = {
     getcarsCountBycreatorId,
     getUserCarViewsByYear,
     getcarsByCreatorId,
+    getBestDeals,
+    getMostWantedCars,
 };

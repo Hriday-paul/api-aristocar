@@ -71,6 +71,17 @@ const CarSchema = new mongoose_1.Schema({
         required: true,
     },
     view_count: { type: Number, default: 0 },
+    bannerImage: {
+        type: [
+            {
+                url: { type: String },
+                key: { type: String },
+            },
+        ],
+        default: [],
+    },
+    discription: { type: String },
+    isMostWanted: { type: Boolean, default: false },
 }, {
     timestamps: true,
 });

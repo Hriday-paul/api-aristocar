@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.termsRoutes = void 0;
+const express_1 = require("express");
+const terms_controller_1 = require("./terms.controller");
+const router = (0, express_1.Router)();
+router.post('/create-terms', terms_controller_1.termsController.createterms);
+router.patch('/update/:id', terms_controller_1.termsController.updateterms);
+router.delete('/:id', terms_controller_1.termsController.deleteterms);
+router.get('/:id', terms_controller_1.termsController.gettermsById);
+router.get('/', terms_controller_1.termsController.getAllterms);
+exports.termsRoutes = router;

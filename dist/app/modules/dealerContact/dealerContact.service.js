@@ -17,13 +17,14 @@ const http_status_1 = __importDefault(require("http-status"));
 const AppError_1 = __importDefault(require("../../error/AppError"));
 const dealerContact_models_1 = __importDefault(require("./dealerContact.models"));
 const cars_models_1 = require("../cars/cars.models");
+const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const createdealerContact = (payload) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
     //@ts-ignore
+    var _a;
     const isCarExists = yield cars_models_1.CarModel.findById(payload === null || payload === void 0 ? void 0 : payload.carId).populate([{ path: 'creatorID', select: 'name email _id profile' }]);
-    if (!isCarExists) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Car not found');
-    }
+    // if (!isCarExists) {
+    //   throw new AppError(httpStatus.NOT_FOUND, 'Car not found');
+    // }
     const dealerContacts = yield dealerContact_models_1.default.create(Object.assign(Object.assign({}, payload), { userId: (_a = isCarExists === null || isCarExists === void 0 ? void 0 : isCarExists.creatorID) === null || _a === void 0 ? void 0 : _a._id }));
     if (!dealerContacts) {
         throw new AppError_1.default(http_status_1.default.INTERNAL_SERVER_ERROR, 'Failed to create contact');
@@ -58,12 +59,21 @@ const createdealerContact = (payload) => __awaiter(void 0, void 0, void 0, funct
     // );
     return dealerContacts;
 });
-const getAlldealerContact = () => __awaiter(void 0, void 0, void 0, function* () {
-    const dealercontacts = yield dealerContact_models_1.default.find({}).populate('carId');
-    if (!dealercontacts) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'No contacts found');
-    }
-    return dealercontacts;
+const getAlldealerContact = (query) => __awaiter(void 0, void 0, void 0, function* () {
+    const dealerContactModel = new QueryBuilder_1.default(dealerContact_models_1.default.find({}).populate('carId'), query)
+        .search(['name', 'email', 'phoneNumber', 'status'])
+        .filter()
+        .paginate()
+        .sort();
+    const data = yield dealerContactModel.modelQuery;
+    const meta = yield dealerContactModel.countTotal();
+    // if (!data || data.length === 0) {
+    //   throw new AppError(httpStatus.NOT_FOUND, 'No dealer contacts found');
+    // }
+    return {
+        data,
+        meta,
+    };
 });
 const getdealerContactById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const dealercontactById = yield dealerContact_models_1.default.findById(id);

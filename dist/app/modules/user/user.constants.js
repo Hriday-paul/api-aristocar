@@ -10,5 +10,5 @@ exports.USER_ROLE = {
     service_provider: 'service_provider',
 };
 exports.gender = ['Male', 'Female', 'Others'];
-exports.Role = ['admin', 'super_admin', 'sub_admin', 'user', 'dealer'];
-exports.userSearchableFields = ['shopId', 'email'];
+exports.Role = ['admin', 'user', 'dealer'];
+exports.userSearchableFields = ['email'];

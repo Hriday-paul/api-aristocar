@@ -291,9 +291,6 @@ const getMostWantedCars = async (): Promise<ICar[]> => {
   const mostWantedCars = await CarModel.find({
     isMostWanted: true,
   }).limit(6);
-  if (!mostWantedCars.length) {
-    throw new AppError(httpStatus.NOT_FOUND, 'No most wanted cars found');
-  }
 
   return mostWantedCars;
 };

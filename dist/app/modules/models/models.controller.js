@@ -36,7 +36,7 @@ exports.getModelsByBrand = (0, catchAsync_1.default)((req, res) => __awaiter(voi
     });
 }));
 const getAllmodels = (0, catchAsync_1.default)((req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield models_service_1.modelsService.getAllmodels();
+    const result = yield models_service_1.modelsService.getAllmodels(req.query);
     (0, sendResponse_1.default)(res, {
         statusCode: 200,
         success: true,

@@ -14,6 +14,11 @@ const dealerContact_route_1 = require("../modules/dealerContact/dealerContact.ro
 const traffic_route_1 = require("../modules/traffic/traffic.route");
 const brands_route_1 = require("../modules/brands/brands.route");
 const models_route_1 = require("../modules/models/models.route");
+const invoice_route_1 = require("../modules/invoice/invoice.route");
+const most_wanted_route_1 = require("../modules/most_wanted/most_wanted.route");
+const privacy_route_1 = require("../modules/privacy/privacy.route");
+const about_route_1 = require("../modules/about/about.route");
+const terms_route_1 = require("../modules/terms/terms.route");
 const router = (0, express_1.Router)();
 const moduleRoutes = [
     {
@@ -67,6 +72,26 @@ const moduleRoutes = [
     {
         path: '/models',
         route: models_route_1.modelsRoutes,
+    },
+    {
+        path: '/invoices',
+        route: invoice_route_1.invoiceRoutes,
+    },
+    {
+        path: '/mostwanted',
+        route: most_wanted_route_1.most_wantedRoutes,
+    },
+    {
+        path: '/privacy',
+        route: privacy_route_1.privacyRoutes,
+    },
+    {
+        path: '/about',
+        route: about_route_1.aboutRoutes,
+    },
+    {
+        path: '/terms',
+        route: terms_route_1.termsRoutes,
     },
 ];
 moduleRoutes.forEach(route => router.use(route.path, route.route));

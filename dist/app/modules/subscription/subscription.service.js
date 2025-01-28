@@ -19,7 +19,11 @@ const AppError_1 = __importDefault(require("../../error/AppError"));
 const packages_models_1 = __importDefault(require("../packages/packages.models"));
 const subscription_models_1 = __importDefault(require("./subscription.models"));
 const mongoose_1 = require("mongoose");
+const user_models_1 = require("../user/user.models");
+const user_constants_1 = require("../user/user.constants");
 const createSubscription = (payload) => __awaiter(void 0, void 0, void 0, function* () {
+    // console.log('insdie create subscription');
+    // Check if a similar subscription exists
     const isExist = yield subscription_models_1.default.findOne({
         user: payload.user,
         package: payload.package,
@@ -28,12 +32,28 @@ const createSubscription = (payload) => __awaiter(void 0, void 0, void 0, functi
     if (isExist) {
         return isExist;
     }
+    // Find the package details
     const packages = yield packages_models_1.default.findById(payload.package);
+    const user = yield user_models_1.User.findById(payload.user);
     if (!packages) {
         throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Package not found');
     }
+    // Check user role and approval status
+    if ((user === null || user === void 0 ? void 0 : user.role) === user_constants_1.USER_ROLE.dealer && !user.isApproved) {
+        throw new AppError_1.default(http_status_1.default.FORBIDDEN, 'Dealer account is not approved by admin');
+    }
+    // Set the subscription amount
     payload.amount = packages.price;
+    // Calculate the expiration date based on the package duration
+    if (user === null || user === void 0 ? void 0 : user.durationDay) {
+        const currentDate = new Date();
+        const durationInMilliseconds = user.durationDay * 24 * 60 * 60 * 1000; // Convert days to milliseconds
+        payload.expiredAt = new Date(currentDate.getTime() + durationInMilliseconds); // Calculate expiration date
+        console.log('Current Date:', payload.expiredAt);
+    }
+    // Create the subscription
     const result = yield subscription_models_1.default.create(payload);
+    // console.log('result:', result);
     if (!result) {
         throw new Error('Failed to create subscription');
     }
@@ -46,6 +66,8 @@ const getAllSubscription = (query) => __awaiter(void 0, void 0, void 0, function
         .paginate()
         .sort()
         .fields();
+    subscriptionsModel.modelQuery =
+        subscriptionsModel.modelQuery.sort('createdAt');
     const data = yield subscriptionsModel.modelQuery;
     const meta = yield subscriptionsModel.countTotal();
     return {
@@ -54,17 +76,17 @@ const getAllSubscription = (query) => __awaiter(void 0, void 0, void 0, function
     };
 });
 const getSubscriptionById = (userId) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield subscription_models_1.default.find({ user: userId }).populate([
-        'package',
-        'user',
-    ]);
-    // if (!result) {
-    //   throw new Error('Subscription not found');
-    // }
-    return result;
+    const result = yield subscription_models_1.default.findOne({
+        user: userId,
+        isPaid: true,
+    })
+        .populate(['package', 'user'])
+        .sort('-createdAt');
+    // return [result];
+    return result ? [result] : [];
 });
 const getSubscriptionByUserId = (id) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield subscription_models_1.default.findOne({
+    const result = yield subscription_models_1.default.find({
         user: new mongoose_1.Types.ObjectId(id),
     }).populate(['package', 'user']);
     return result;

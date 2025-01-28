@@ -36,9 +36,14 @@ const parseData_1 = __importDefault(require("../../middleware/parseData"));
 const router = (0, express_1.Router)();
 const storage = (0, multer_1.memoryStorage)();
 const upload = (0, multer_1.default)({ storage });
-router.post('/create', (0, auth_1.default)(user_constants_1.USER_ROLE === null || user_constants_1.USER_ROLE === void 0 ? void 0 : user_constants_1.USER_ROLE.dealer, user_constants_1.USER_ROLE.admin), upload.fields([{ name: 'images', maxCount: 5 }]), (0, parseData_1.default)(), cars_controller_1.carsController.createcars);
-router.patch('/update/:id', (0, auth_1.default)(user_constants_1.USER_ROLE.admin), cars_controller_1.carsController.updatecars);
+router.post('/create', (0, auth_1.default)(user_constants_1.USER_ROLE === null || user_constants_1.USER_ROLE === void 0 ? void 0 : user_constants_1.USER_ROLE.dealer), upload.fields([{ name: 'images', maxCount: 5 }]), (0, parseData_1.default)(), cars_controller_1.carsController.createcars);
+router.patch('/update/:id', (0, auth_1.default)(user_constants_1.USER_ROLE === null || user_constants_1.USER_ROLE === void 0 ? void 0 : user_constants_1.USER_ROLE.dealer, user_constants_1.USER_ROLE.admin), upload.fields([
+    { name: 'images', maxCount: 5 },
+    { name: 'bannerImage', maxCount: 1 },
+]), (0, parseData_1.default)(), cars_controller_1.carsController.updatecars);
 router.delete('/:id', (0, auth_1.default)(user_constants_1.USER_ROLE === null || user_constants_1.USER_ROLE === void 0 ? void 0 : user_constants_1.USER_ROLE.dealer, user_constants_1.USER_ROLE.admin), cars_controller_1.carsController.deletecars);
+router.get('/bestdeal', cars_controller_1.carsController.getBestDeals);
+router.get('/most-wanted', cars_controller_1.carsController.getMostWantedCars);
 router.get('/count', (0, auth_1.default)(user_constants_1.USER_ROLE.dealer, user_constants_1.USER_ROLE.admin), cars_controller_1.carsController.getcarsCountBycreatorId);
 router.get('/views-for-user', (0, auth_1.default)(user_constants_1.USER_ROLE.dealer, user_constants_1.USER_ROLE.admin), cars_controller_1.carsController.getUserCarViewsByYear);
 router.get('/creator/:creatorID', cars_controller_1.carsController.getcarsByCreatorId);

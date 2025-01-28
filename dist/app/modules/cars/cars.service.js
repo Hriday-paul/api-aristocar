@@ -30,7 +30,6 @@ const cars_models_1 = require("./cars.models");
 const QueryBuilder_1 = __importDefault(require("../../builder/QueryBuilder"));
 const s3_1 = require("../../utils/s3");
 const mongoose_1 = require("mongoose");
-const subscription_models_1 = __importDefault(require("../subscription/subscription.models"));
 const user_models_1 = require("../user/user.models");
 const createcars = (payload, files) => __awaiter(void 0, void 0, void 0, function* () {
     if (files) {
@@ -46,11 +45,14 @@ const createcars = (payload, files) => __awaiter(void 0, void 0, void 0, functio
             }));
             payload.images = yield (0, s3_1.uploadManyToS3)(imgsArray);
         }
+        else {
+            throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Upload minimum 1 image');
+        }
+    }
+    else {
+        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Upload minimum 1 image');
     }
     const car = yield cars_models_1.CarModel.create(payload);
-    if (!car) {
-        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Car creation failed');
-    }
     return car;
 });
 const getAllcars = (query) => __awaiter(void 0, void 0, void 0, function* () {
@@ -91,7 +93,7 @@ const getcarsById = (id) => __awaiter(void 0, void 0, void 0, function* () {
         .populate('model')
         .populate('creatorID');
     if (!car) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Car not found');
+        return 'No car found';
     }
     yield cars_models_1.CarModel.findByIdAndUpdate(id, {
         $inc: { view_count: 1 },
@@ -99,8 +101,10 @@ const getcarsById = (id) => __awaiter(void 0, void 0, void 0, function* () {
     return car;
 });
 const getcarsByCreatorId = (creatorID) => __awaiter(void 0, void 0, void 0, function* () {
-    // console.log('creatorID=====', creatorID);
-    const car = yield cars_models_1.CarModel.find({ creatorID }).populate('creatorID');
+    const car = yield cars_models_1.CarModel.find({ creatorID })
+        .populate('creatorID')
+        .populate('brand')
+        .populate('model');
     if (!car) {
         throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Car not found');
     }
@@ -109,97 +113,87 @@ const getcarsByCreatorId = (creatorID) => __awaiter(void 0, void 0, void 0, func
     });
     return car;
 });
-// const getcarsCountBycreatorId = async (creatorID: string) => {
-//   const subscription = await Subscription.findOne({
-//     user: creatorID,
-//   }).populate<{ package: IPackage }>({
-//     path: 'package',
-//     select: 'carCreateLimit',
-//   });
-//   if (!subscription) {
-//     throw new AppError(httpStatus.NOT_FOUND, 'Subscription not found');
-//   }
-//   if (
-//     !subscription.package ||
-//     typeof subscription.package.carCreateLimit !== 'number'
-//   ) {
-//     throw new AppError(
-//       httpStatus.BAD_REQUEST,
-//       'Invalid subscription package or car creation limit',
-//     );
-//   }
-//   const carCreateLimit = subscription.package.carCreateLimit;
-//   const createdCarCount = await CarModel.countDocuments({ creatorID });
-//   const carsRemaining = carCreateLimit - createdCarCount;
-//   if (createdCarCount === 0) {
-//     throw new AppError(httpStatus.NOT_FOUND, 'No cars found for this user');
-//   }
-//   const allCars = await CarModel.find({ creatorID });
-//   return {
-//     createdCarCount,
-//     carsRemaining: carsRemaining >= 0 ? carsRemaining : 0, // Ensure no negative values
-//     allCars,
-//     carCreateLimit,
-//   };
-// };
 const getcarsCountBycreatorId = (creatorID) => __awaiter(void 0, void 0, void 0, function* () {
-    // Get the user details to check free limit
     const user = yield user_models_1.User.findById(creatorID);
     if (!user) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'User not found');
+        return { message: 'User not found' }; // More relevant message
     }
-    // Check if user is a free user
-    if (user.freeLimit !== undefined && user.freeLimit > 0) {
-        const createdCarCount = yield cars_models_1.CarModel.countDocuments({ creatorID });
-        const carsRemaining = user.freeLimit - createdCarCount;
-        if (createdCarCount === 0) {
-            throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'No cars found for this user');
-        }
-        const allCars = yield cars_models_1.CarModel.find({ creatorID });
-        return {
-            createdCarCount,
-            carsRemaining: carsRemaining >= 0 ? carsRemaining : 0, // Ensure no negative values
-            allCars,
-            carCreateLimit: user.freeLimit,
-        };
-    }
-    // If not a free user, fetch subscription details
-    const subscription = yield subscription_models_1.default.findOne({
-        user: creatorID,
-    }).populate({
-        path: 'package',
-        select: 'carCreateLimit',
-    });
-    if (!subscription) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Subscription not found');
-    }
-    if (!subscription.package ||
-        typeof subscription.package.carCreateLimit !== 'number') {
-        throw new AppError_1.default(http_status_1.default.BAD_REQUEST, 'Invalid subscription package or car creation limit');
-    }
-    const carCreateLimit = subscription.package.carCreateLimit;
+    // Count the number of cars created by this user
     const createdCarCount = yield cars_models_1.CarModel.countDocuments({ creatorID });
-    const carsRemaining = carCreateLimit - createdCarCount;
-    if (createdCarCount === 0) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'No cars found for this user');
-    }
-    const allCars = yield cars_models_1.CarModel.find({ creatorID });
+    // Determine the remaining car limit
+    const carsRemaining = user.freeLimit > 0 ? user.freeLimit : user.carCreateLimit;
+    // Fetch all cars created by this user with populated brand and model data
+    const allCars = yield cars_models_1.CarModel.find({ creatorID })
+        .populate('brand')
+        .populate('model');
+    // Return the results
     return {
         createdCarCount,
-        carsRemaining: carsRemaining >= 0 ? carsRemaining : 0, // Ensure no negative values
+        carsRemaining,
         allCars,
-        carCreateLimit,
+        carCreateLimit: carsRemaining, // Include carCreateLimit for reference
     };
 });
-const updatecars = (id, payload) => __awaiter(void 0, void 0, void 0, function* () {
-    const car = yield cars_models_1.CarModel.findByIdAndUpdate(id, payload, {
-        new: true,
-        runValidators: true,
-    });
-    if (!car) {
-        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'Car not found or update failed');
+const updatecars = (id, payload, files) => __awaiter(void 0, void 0, void 0, function* () {
+    let newImages = [];
+    let newBannerImages = [];
+    if (files) {
+        const { images, bannerImage } = files;
+        // Handle regular images
+        if (images === null || images === void 0 ? void 0 : images.length) {
+            const imgsArray = [];
+            for (const image of images) {
+                imgsArray.push({
+                    file: image,
+                    path: `images/car/images/${Math.floor(100000 + Math.random() * 900000)}`,
+                });
+            }
+            newImages = yield (0, s3_1.uploadManyToS3)(imgsArray);
+        }
+        // Handle banner images
+        if (bannerImage === null || bannerImage === void 0 ? void 0 : bannerImage.length) {
+            const bannerImgsArray = [];
+            for (const image of bannerImage) {
+                bannerImgsArray.push({
+                    file: image,
+                    path: `images/car/banner/${Math.floor(100000 + Math.random() * 900000)}`,
+                });
+            }
+            newBannerImages = yield (0, s3_1.uploadManyToS3)(bannerImgsArray);
+        }
     }
+    // Fetch the existing car data from the database
+    const existingCar = yield cars_models_1.CarModel.findById(id);
+    // Ensure existing images are retained if no new images are provided
+    // payload.images = [
+    //   ...(existingCar?.images || []), // Retain existing images
+    //   ...newImages,
+    // ];
+    payload.images = [
+        ...(payload.defaultImages || (existingCar === null || existingCar === void 0 ? void 0 : existingCar.images) || []),
+        ...newImages,
+    ];
+    // Update the bannerImage field
+    payload.bannerImage = newBannerImages.length
+        ? newBannerImages
+        : (existingCar === null || existingCar === void 0 ? void 0 : existingCar.bannerImage) || []; // Retain existing bannerImage if no new one is provided
+    // Update the car in the database
+    const car = yield cars_models_1.CarModel.findByIdAndUpdate(id, Object.assign({}, payload), { runValidators: true, new: true });
     return car;
+});
+const getBestDeals = () => __awaiter(void 0, void 0, void 0, function* () {
+    const currentDate = new Date();
+    const lastWeekDate = new Date(currentDate.setDate(currentDate.getDate() - 7)); // 7 days ago
+    // Get cars that were listed in the last 7 days and have high view count
+    const bestDeals = yield cars_models_1.CarModel.find({
+        createdAt: { $gte: lastWeekDate }, // Cars listed in the last 7 days
+    })
+        .populate('brand')
+        .populate('model')
+        .populate('creatorID')
+        .sort({ view_count: -1 })
+        .limit(10);
+    return bestDeals;
 });
 const deletecars = (id) => __awaiter(void 0, void 0, void 0, function* () {
     const car = yield cars_models_1.CarModel.findByIdAndDelete(id);
@@ -267,6 +261,15 @@ const getCarViewsByYear = (userId, year) => __awaiter(void 0, void 0, void 0, fu
     });
     return formattedResult;
 });
+const getMostWantedCars = () => __awaiter(void 0, void 0, void 0, function* () {
+    const mostWantedCars = yield cars_models_1.CarModel.find({
+        isMostWanted: true,
+    }).limit(6);
+    if (!mostWantedCars.length) {
+        throw new AppError_1.default(http_status_1.default.NOT_FOUND, 'No most wanted cars found');
+    }
+    return mostWantedCars;
+});
 exports.carsService = {
     createcars,
     getAllcars,
@@ -276,4 +279,6 @@ exports.carsService = {
     getcarsCountBycreatorId,
     getCarViewsByYear,
     getcarsByCreatorId,
+    getBestDeals,
+    getMostWantedCars,
 };

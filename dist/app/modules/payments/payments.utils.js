@@ -35,7 +35,7 @@ const createCheckoutSession = (payload) => __awaiter(void 0, void 0, void 0, fun
                 quantity: (_c = payload.product) === null || _c === void 0 ? void 0 : _c.quantity,
             },
         ],
-        success_url: `${config_1.default.server_url}/payments/confirm-payment?sessionId={CHECKOUT_SESSION_ID}&paymentId=${payload === null || payload === void 0 ? void 0 : payload.paymentId}`,
+        success_url: `${config_1.default.success_url}?sessionId={CHECKOUT_SESSION_ID}&paymentId=${payload === null || payload === void 0 ? void 0 : payload.paymentId}`,
         cancel_url: config_1.default === null || config_1.default === void 0 ? void 0 : config_1.default.cancel_url,
         // `${config.server_url}/payments/cancel?paymentId=${payload?.paymentId}`,
         mode: 'payment',
@@ -56,7 +56,7 @@ const createCheckoutSession = (payload) => __awaiter(void 0, void 0, void 0, fun
         //   },
         // },
         // payment_method_types: ['card', 'amazon_pay', 'cashapp', 'us_bank_account'],
-        payment_method_types: ['card'],
+        payment_method_types: ['card', 'paypal'],
     });
     return paymentGatewayData;
 });
