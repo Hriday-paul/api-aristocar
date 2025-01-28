@@ -37,7 +37,7 @@ const createUser = async (payload: IUser): Promise<IUser> => {
     // If 'isApproved' is set to true, send an email
     await sendEmail(
       payload?.email,
-      'Your account has been approved',
+      'Your account is under review',
       fs
         .readFileSync(emailPath, 'utf8')
         .replace('{{name}}', payload?.name)

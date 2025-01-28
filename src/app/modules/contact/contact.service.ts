@@ -10,7 +10,29 @@ import { User } from '../user/user.models';
 import fs from 'fs';
 
 const createContact = async (payload: Icontact) => {
+
+  const emailPath = path.join(
+    __dirname,
+    '../../../../public/view/supportEmail.html',
+  );
+  // If 'isApproved' is set to true, send an email
+  await sendEmail(
+    payload?.email,
+    'Got a support message from Aristocar',
+    fs
+      .readFileSync(emailPath, 'utf8')
+      .replace('{{name}}', payload?.firstName + ' ' + payload?.lastName)
+      .replace('{{email}}', payload?.email)
+      .replace('{{details}}', payload?.description)
+  );
+
+
   const contacts = await contact.create(payload);
+
+
+
+
+
   if (!contacts) {
     throw new AppError(
       httpStatus.INTERNAL_SERVER_ERROR,
