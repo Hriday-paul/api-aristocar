@@ -81,13 +81,6 @@ const login = async (payload: TLogin) => {
     if (!user?.verification?.status) {
       throw new AppError(httpStatus.FORBIDDEN, 'User account is not verified');
     }
-
-    if (user.role === USER_ROLE.dealer && !user.isApproved) {
-      throw new AppError(
-        httpStatus.FORBIDDEN,
-        'Dealer account is not approved by admin',
-      );
-    }
   }
 
   const jwtPayload: { userId: string; role: string } = {

@@ -6,6 +6,7 @@ import { ISubscriptions } from './subscription.interface';
 import Subscription from './subscription.models';
 import { Types } from 'mongoose';
 import { User } from '../user/user.models';
+import { USER_ROLE } from '../user/user.constants';
 
 const createSubscription = async (payload: ISubscriptions) => {
   // console.log('insdie create subscription');
@@ -28,6 +29,14 @@ const createSubscription = async (payload: ISubscriptions) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'Package not found');
   }
 
+  // Check user role and approval status
+  if (user?.role === USER_ROLE.dealer && !user.isApproved) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      'Dealer account is not approved by admin',
+    );
+  }
+
   // Set the subscription amount
   payload.amount = packages.price;
 
@@ -40,7 +49,6 @@ const createSubscription = async (payload: ISubscriptions) => {
     ); // Calculate expiration date
     console.log('Current Date:', payload.expiredAt);
   }
-
   // Create the subscription
   const result = await Subscription.create(payload);
   // console.log('result:', result);
@@ -81,6 +89,7 @@ const getSubscriptionById = async (userId: string) => {
   })
     .populate(['package', 'user'])
     .sort('-createdAt');
+  // return [result];
   return result ? [result] : [];
 };
 

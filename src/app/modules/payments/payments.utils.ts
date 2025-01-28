@@ -52,7 +52,7 @@ export const createCheckoutSession = async (payload: IPayload) => {
     //   },
     // },
     // payment_method_types: ['card', 'amazon_pay', 'cashapp', 'us_bank_account'],
-    payment_method_types: ['card'],
+    payment_method_types: ['card', 'paypal'],
   });
   return paymentGatewayData;
 };

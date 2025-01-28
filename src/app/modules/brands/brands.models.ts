@@ -8,6 +8,14 @@ const BrandsSchema: Schema<Ibrand> = new Schema(
       type: String,
       required: true,
     },
+    image: {
+      type: String,
+      default: null,
+    },
+    isHome: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true },
 );

@@ -40,6 +40,11 @@ const getbrandsById = async (id: string) => {
   return brands;
 };
 
+const getHomeShow = async () => {
+  const brands = await brand.find({ isHome: true });
+  return brands;
+};
+
 const updatebrands = async (id: string, payload: Partial<Ibrand>) => {
   const updatedBrand = await brand.findByIdAndUpdate(id, payload, {
     new: true,
@@ -63,4 +68,5 @@ export const brandsService = {
   getbrandsById,
   updatebrands,
   deletebrands,
+  getHomeShow,
 };

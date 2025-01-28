@@ -344,12 +344,10 @@ const getEarnings = async () => {
   const totalEarnings =
     (earnings?.length > 0 &&
       earnings[0]?.totalEarnings?.length > 0 &&
-      earnings[0]?.totalEarnings[0]?.total) ||
+      earnings[0]?.totalEarnings[0]?.total.toFixed(2)) ||
     0;
   const todayEarnings =
-    (earnings?.length > 0 &&
-      earnings[0]?.todayEarnings?.length > 0 &&
-      earnings[0]?.todayEarnings[0]?.total) ||
+    (earnings?.length > 0 && earnings[0]?.todayEarnings?.length > 0 && earnings[0]?.todayEarnings[0]?.total.toFixed(2)) ||
     0;
 
   const allData = earnings[0]?.allData || [];
@@ -557,14 +555,14 @@ const getAllPayments = async () => {
 };
 
 const getPaymentsByUserId = async (
-  userId: IPayment,
+  userId: string,
   query: Record<string, any>,
 ) => {
   const paymentQueryBuilder = new QueryBuilder(
-    Payment.find({ user: userId }).populate({
+    Payment.find({ user: userId, isPaid: true }).populate({
       path: 'subscription',
       populate: { path: 'package' },
-    }),
+    }).populate('user'),
     query,
   )
     .search(['paymentStatus', 'transactionId', 'subscription.name'])

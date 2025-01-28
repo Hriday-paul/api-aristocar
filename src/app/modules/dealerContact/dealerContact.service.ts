@@ -134,7 +134,6 @@ const getDealerContact = async (userId: string) => {
   if (!userId) {
     throw new AppError(httpStatus.NOT_FOUND, 'Message not found');
   }
-
   return allContact;
 };
 

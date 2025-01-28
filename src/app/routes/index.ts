@@ -16,6 +16,7 @@ import { invoiceRoutes } from '../modules/invoice/invoice.route';
 import { most_wantedRoutes } from '../modules/most_wanted/most_wanted.route';
 import { privacyRoutes } from '../modules/privacy/privacy.route';
 import { aboutRoutes } from '../modules/about/about.route';
+import { termsRoutes } from '../modules/terms/terms.route';
 
 const router = Router();
 const moduleRoutes = [
@@ -86,6 +87,10 @@ const moduleRoutes = [
   {
     path: '/about',
     route: aboutRoutes,
+  },
+  {
+    path: '/terms',
+    route: termsRoutes,
   },
 ];
 moduleRoutes.forEach(route => router.use(route.path, route.route));

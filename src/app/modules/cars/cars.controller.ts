@@ -25,12 +25,11 @@ const createcars = catchAsync(async (req: Request, res: Response) => {
     });
   }
 
-  // Check if the user has the dealer role
-  if (user.role !== USER_ROLE.dealer) {
-    return res.status(httpStatus.FORBIDDEN).json({
-      success: false,
-      message: 'Only dealers are allowed to create cars',
-    });
+  if (user.role === USER_ROLE.dealer && !user.isApproved) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      'Dealer account is not approved by admin',
+    );
   }
 
   // Check if the user has valid limits to create cars

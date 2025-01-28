@@ -7,6 +7,9 @@ import { User } from './user.models';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { USER_ROLE } from './user.constants';
 import { validateVATNumber } from 'validate-vat';
+import { sendEmail } from '../../utils/mailSender';
+import fs from 'fs';
+import path from 'path';
 
 export type IFilter = {
   searchTerm?: string;
@@ -26,6 +29,20 @@ const createUser = async (payload: IUser): Promise<IUser> => {
   // If the user is registering as a dealer, set isApproved to false
   if (payload.role === USER_ROLE.dealer) {
     payload.isApproved = false; // Dealer accounts need admin approval
+
+    const emailPath = path.join(
+      __dirname,
+      '../../../../public/view/dealerRegisterMail.html',
+    );
+    // If 'isApproved' is set to true, send an email
+    await sendEmail(
+      payload?.email,
+      'Your account has been approved',
+      fs
+        .readFileSync(emailPath, 'utf8')
+        .replace('{{name}}', payload?.name)
+        .replace('{{email}}', payload?.email),
+    );
   }
 
   if (payload?.isGoogleLogin) {
@@ -50,33 +67,28 @@ const createUser = async (payload: IUser): Promise<IUser> => {
     );
   }
 
-  if (payload.role === USER_ROLE.dealer) {
-    if (payload.dealer_address?.vat_id) {
-      try {
-        const result = await validateVATNumber(payload.dealer_address.vat_id);
+  // if (payload.role === USER_ROLE.dealer) {
+  //   if (payload.dealer_address?.vat_id) {
+  //     try {
+  //       const result = await validateVATNumber(payload.dealer_address.vat_id);
 
-        // Update VAT status based on validation result
-        payload.vat_status = result.isValid ? 'valid' : 'vat not valid';
-      } catch (error) {
-        console.error('VAT validation error:'); // Log the error for debugging
-        payload.vat_status = 'vat not valid'; // Fallback status
-        throw new AppError(httpStatus.NOT_FOUND, 'VAT ID Not Valid');
-      }
-    } else {
-      // If VAT ID is not provided, set status as 'vat not valid'
-      payload.vat_status = 'vat not valid';
-    }
-  }
+  //       // Update VAT status based on validation result
+  //       payload.vat_status = result.isValid ? 'valid' : 'vat not valid';
+  //     } catch (error) {
+  //       console.error('VAT validation error:'); // Log the error for debugging
+  //       payload.vat_status = 'vat not valid'; // Fallback status
+  //       throw new AppError(httpStatus.NOT_FOUND, 'VAT ID Not Valid');
+  //     }
+  //   } else {
+  //     // If VAT ID is not provided, set status as 'vat not valid'
+  //     payload.vat_status = 'vat not valid';
+  //   }
+  // }
 
   const user = await User.create(payload);
   if (!user) {
     throw new AppError(httpStatus.BAD_REQUEST, 'User creation failed');
   }
-
-  // Optionally, notify the admin for approval (if the user is a dealer)
-  // if (payload.role === USER_ROLE.dealer) {
-  //   sendAdminNotification(payload);
-  // }
   return user;
 };
 
@@ -224,6 +236,22 @@ const updateUser = async (id: string, payload: Partial<IUser>) => {
 
   // Remove the password from the response
   (updatedUser.password as any) = undefined;
+
+  const emailPath = path.join(
+    __dirname,
+    '../../../../public/view/delearApproved.html',
+  );
+  // If 'isApproved' is set to true, send an email
+  if (payload.isApproved === true) {
+    await sendEmail(
+      updatedUser?.email,
+      'Your account has been approved',
+      fs
+        .readFileSync(emailPath, 'utf8')
+        .replace('{{name}}', updatedUser?.name)
+        .replace('{{email}}', user?.email),
+    );
+  }
 
   return updatedUser;
 };

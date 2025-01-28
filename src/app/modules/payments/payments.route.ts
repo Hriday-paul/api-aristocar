@@ -13,6 +13,12 @@ router.get(
   paymentsController.getPaymentsByUserId,
 );
 
+router.get(
+  '/paymentbyuserId/:id',
+  auth(USER_ROLE.admin),
+  paymentsController.getPaymentsByUserIdWithParams,
+);
+
 router.get('/invoices/:id', paymentsController.generateInvoice);
 
 router.get('/confirm-payment', paymentsController.confirmPayment);

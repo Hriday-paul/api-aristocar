@@ -73,6 +73,25 @@ const getPaymentsByUserId = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getPaymentsByUserIdWithParams = catchAsync(async (req: Request, res: Response) => {
+  const {id} = req.params;
+  const result = await paymentsService.getPaymentsByUserId(id, req.query);
+  if (!result) {
+    return sendResponse(res, {
+      success: false,
+      statusCode: httpStatus.NOT_FOUND,
+      message: 'Payment not found',
+      data: {},
+    });
+  }
+  sendResponse(res, {
+    success: true,
+    statusCode: httpStatus.OK,
+    data: result,
+    message: 'Payment retrieved successfully',
+  });
+});
+
 const getAllPayments = catchAsync(async (req: Request, res: Response) => {
   const result = await paymentsService.getAllPayments(); // Assume this service method exists
   sendResponse(res, {
@@ -170,5 +189,6 @@ export const paymentsController = {
   dashboardData,
   getEarnings,
   getPaymentsByUserId,
+  getPaymentsByUserIdWithParams,
   generateInvoice,
 };

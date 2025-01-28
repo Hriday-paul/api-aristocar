@@ -5,7 +5,7 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com.',
     port: 587,
-    secure: process.env.EMAIL_ENV === 'production',
+    secure: config.NODE_ENV === 'production',
     auth: {
       // TODO: replace `user` and `pass` values from <https://forwardemail.net>
       user: config.nodemailer_host_email,
