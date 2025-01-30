@@ -41,5 +41,7 @@ router.get(
   paymentsController.getPaymentsById,
 );
 router.get('/', auth(USER_ROLE.admin), paymentsController.getAllPayments);
+router.post('/', auth(USER_ROLE.admin), paymentsController.getAllPayments);
+
 
 export const paymentsRoutes = router;
