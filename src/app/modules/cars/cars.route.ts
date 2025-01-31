@@ -14,7 +14,7 @@ const upload = multer({ storage });
 router.post(
   '/create',
   auth(USER_ROLE?.dealer),
-  upload.fields([{ name: 'images', maxCount: 5 }]),
+  upload.fields([{ name: 'images', maxCount: 25 }]),
   parseData(),
   carsController.createcars,
 );
@@ -23,7 +23,7 @@ router.patch(
   '/update/:id',
   auth(USER_ROLE?.dealer, USER_ROLE.admin),
   upload.fields([
-    { name: 'images', maxCount: 5 },
+    { name: 'images', maxCount: 25 },
     { name: 'bannerImage', maxCount: 1 },
   ]),
   parseData(),
