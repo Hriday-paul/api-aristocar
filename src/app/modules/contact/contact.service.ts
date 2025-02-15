@@ -8,6 +8,7 @@ import path from 'path';
 import { sendEmail } from '../../utils/mailSender';
 import { User } from '../user/user.models';
 import fs from 'fs';
+import config from '../../config';
 
 const createContact = async (payload: Icontact) => {
 
@@ -17,7 +18,7 @@ const createContact = async (payload: Icontact) => {
   );
   // If 'isApproved' is set to true, send an email
   await sendEmail(
-    payload?.email,
+    config.supportemail!,
     'Got a support message from Aristocar',
     fs
       .readFileSync(emailPath, 'utf8')

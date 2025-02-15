@@ -3,9 +3,9 @@ import config from '../config';
 
 export const sendEmail = async (to: string, subject: string, html: string) => {
   const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com.',
-    port: process.env.EMAIL_ENV === 'production' ? 465 : 587,
-    secure: process.env.EMAIL_ENV === 'production',
+    host: 'smtp.mail.eu-west-1.awsapps.com',
+    port: 587,
+    secure: false,
     auth: {
       // TODO: replace `user` and `pass` values from <https://forwardemail.net>
       user: config.nodemailer_host_email,
@@ -13,11 +13,12 @@ export const sendEmail = async (to: string, subject: string, html: string) => {
     },
   });
 
-  await transporter.sendMail({
+  const res = await transporter.sendMail({
     from: 'nurmdopu428@gmail.com', // sender address
     to, // list of receivers
     subject,
     text: '', // plain text body
     html, // html body
   });
+  console.log(res)
 };

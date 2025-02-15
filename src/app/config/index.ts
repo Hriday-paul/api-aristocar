@@ -30,6 +30,7 @@ export default {
   jwt_refresh_expires_in: process.env.JWT_REFRESH_EXPIRES_IN,
   nodemailer_host_email: process.env.NODEMAILER_HOST_EMAIL,
   nodemailer_host_pass: process.env.NODEMAILER_HOST_PASS,
+  supportemail: process.env.SUPPORT_EMAIL,
   socket_port: process.env.SOCKET_PORT,
   stripe_secret: process.env.STRIPE_API_SECRET,
   stripe_key: process.env.STRIPE_API_KEY,
